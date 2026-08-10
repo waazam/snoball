@@ -1,5 +1,6 @@
 extends CanvasLayer
 
+@onready var heart_icon: Control = $Root/HeartIcon
 @onready var health_label: Label = $Root/HeartIcon/HealthLabel
 @onready var shield_icon: Control = $Root/ShieldIcon
 @onready var armor_label: Label = $Root/ShieldIcon/ArmorLabel
@@ -38,6 +39,7 @@ func _process(delta: float) -> void:
 
 func _on_health_changed(current: float, max_health: float) -> void:
 	health_label.text = "%d/%d" % [int(current), int(max_health)]
+	heart_icon.set_fill_ratio(current / max_health if max_health > 0.0 else 0.0)
 
 func _on_armor_changed(current: float, max_armor: float) -> void:
 	if max_armor <= 0.0:

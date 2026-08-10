@@ -28,10 +28,10 @@ const TYPES := {
 	},
 	"frost_crown": {
 		"display_name": "Frost Crown",
-		"desc": "Throw snowballs more often",
+		"desc": "+20 max health, fully healed",
 		"color": Color(0.35, 0.65, 0.95),
-		"kind": "fire_rate",
-		"amount": 1,
+		"kind": "max_health",
+		"amount": 20.0,
 	},
 	"lucky_top_hat": {
 		"display_name": "Lucky Top Hat",
@@ -59,10 +59,13 @@ func apply(id: String) -> void:
 	match data.get("kind", ""):
 		"armor":
 			Game.add_armor(data.get("amount", 0.0))
-		"throw_power", "speed", "fire_rate":
+		"throw_power", "speed":
 			var key: String = data.get("kind", "")
 			Game.upgrade_counts[key] = Game.upgrade_counts.get(key, 0) + int(data.get("amount", 1))
 			Game.apply_upgrades_changed()
+		"max_health":
+			Game.max_health += data.get("amount", 0.0)
+			Game.heal(data.get("amount", 0.0))
 		"treasure":
 			Game.add_score(int(data.get("amount", 0)))
 			Game.heal(15.0)

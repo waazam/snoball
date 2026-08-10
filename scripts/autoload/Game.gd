@@ -17,12 +17,15 @@ signal upgrade_picked(title: String)
 
 enum State { MENU, PLAYING, UPGRADE, PAUSED, GAME_OVER }
 
+const COINS_PER_PROJECTILE := 3
+
 var state: int = State.MENU
 
 # --- Run stats -------------------------------------------------------------
 var wave: int = 0
 var score: int = 0
 var kills: int = 0
+var coins_collected: int = 0
 var max_health: float = 100.0
 var health: float = 100.0
 var max_armor: float = 0.0
@@ -46,7 +49,8 @@ var upgrade_counts: Dictionary = {
 	"max_health": 0,
 	"regen": 0,
 	"throw_power": 0,
-	"fire_rate": 0,
+	"proj_speed": 0,
+	"proj_count": 0,
 }
 
 # id -> tier (1..3). Player always starts with the classic snowball.
@@ -64,10 +68,11 @@ func reset_run() -> void:
 	wave = 0
 	score = 0
 	kills = 0
+	coins_collected = 0
 	upgrade_counts = {
 		"speed": 0, "jump_height": 0, "air_control": 0,
 		"dash_cooldown": 0, "dash_charge": 0,
-		"max_health": 0, "regen": 0, "throw_power": 0, "fire_rate": 0,
+		"max_health": 0, "regen": 0, "throw_power": 0, "proj_speed": 0, "proj_count": 0,
 	}
 	double_jump_unlocked = false
 	triple_jump_unlocked = false
@@ -111,6 +116,18 @@ func add_score(amount: int) -> void:
 func add_kill() -> void:
 	kills += 1
 	emit_signal("kills_changed", kills)
+
+## Coins don't touch throw speed at all - every COINS_PER_PROJECTILE
+## collected grants one extra snowball per throw instead.
+func add_coin() -> void:
+	coins_collected += 1
+	var progress: int = coins_collected % COINS_PER_PROJECTILE
+	if progress == 0:
+		upgrade_counts["proj_count"] = upgrade_counts.get("proj_count", 0) + 1
+		apply_upgrades_changed()
+		emit_signal("upgrade_picked", "+1 Snowball per throw!")
+	else:
+		emit_signal("upgrade_picked", "Coin (%d/%d)" % [progress, COINS_PER_PROJECTILE])
 
 func take_damage(amount: float) -> void:
 	if state != State.PLAYING:
@@ -171,8 +188,11 @@ func get_dash_charges() -> int:
 func get_throw_power_mult() -> float:
 	return 1.0 + upgrade_counts.get("throw_power", 0) * 0.10
 
-func get_fire_rate_mult() -> float:
-	return pow(0.9, upgrade_counts.get("fire_rate", 0))
+func get_projectile_speed_mult() -> float:
+	return 1.0 + upgrade_counts.get("proj_speed", 0) * 0.15
+
+func get_projectile_count() -> int:
+	return 1 + upgrade_counts.get("proj_count", 0)
 
 # --- Weapons -------------------------------------------------------------
 func unlock_weapon(id: String) -> void:
@@ -219,7 +239,6 @@ func _setup_input_map() -> void:
 	_bind_key("weapon_4", KEY_4)
 	_bind_key("weapon_5", KEY_5)
 	_bind_key("weapon_6", KEY_6)
-	_bind_mouse("throw", MOUSE_BUTTON_LEFT)
 	_bind_mouse("weapon_next", MOUSE_BUTTON_WHEEL_DOWN)
 	_bind_mouse("weapon_prev", MOUSE_BUTTON_WHEEL_UP)
 

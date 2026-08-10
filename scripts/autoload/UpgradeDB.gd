@@ -5,7 +5,7 @@ extends Node
 const CAPS := {
 	"speed": 4, "jump_height": 3, "air_control": 2,
 	"dash_cooldown": 3, "dash_charge": 1,
-	"max_health": 4, "regen": 3, "throw_power": 5, "fire_rate": 5,
+	"max_health": 4, "regen": 3, "throw_power": 5, "proj_speed": 5,
 }
 
 ## Returns up to `n` unique offer dictionaries:
@@ -75,8 +75,8 @@ func get_offers(n: int = 3) -> Array:
 		pool.append(_stat_offer("regen", "Warm Blood", "Regenerate health over time.", Color(1.0, 0.5, 0.55)))
 	if Game.upgrade_counts.throw_power < CAPS.throw_power:
 		pool.append(_stat_offer("throw_power", "Strong Arm", "Increases snowball damage and speed.", Color(0.75, 0.6, 1.0)))
-	if Game.upgrade_counts.fire_rate < CAPS.fire_rate:
-		pool.append(_stat_offer("fire_rate", "Quick Hands", "Throw snowballs more often.", Color(0.75, 0.6, 1.0)))
+	if Game.upgrade_counts.proj_speed < CAPS.proj_speed:
+		pool.append(_stat_offer("proj_speed", "Frosty Grip", "Snowballs fly faster.", Color(0.75, 0.6, 1.0)))
 
 	pool.shuffle()
 	return pool.slice(0, min(n, pool.size()))

@@ -51,12 +51,13 @@ func get_scene_path(id: String) -> String:
 	return STATS.get(id, STATS["grunt"]).get("scene_path", "res://scenes/enemies/EnemyReindeer.tscn")
 
 ## Difficulty scaling applied on top of base stats for a given wave number.
+## Enemies get tougher, harder-hitting, AND noticeably faster as waves climb.
 func get_scaled_stats(id: String, wave: int) -> Dictionary:
 	var s := get_stats(id)
 	var w: int = maxi(0, wave - 1)
-	s["health"] = s["health"] * (1.0 + w * 0.14)
-	s["damage"] = s["damage"] * (1.0 + w * 0.08)
-	s["speed"] = s["speed"] * (1.0 + min(w * 0.02, 0.3))
+	s["health"] = s["health"] * (1.0 + w * 0.16)
+	s["damage"] = s["damage"] * (1.0 + w * 0.10)
+	s["speed"] = s["speed"] * (1.0 + minf(w * 0.045, 0.8))
 	return s
 
 ## Returns an Array[String] of enemy ids to spawn for the given wave.

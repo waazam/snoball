@@ -8,6 +8,7 @@ signal wave_cleared(wave: int)
 
 const SPAWN_STAGGER := 0.35
 const HAT_SCENE_PATH := "res://scenes/pickups/HatPickup.tscn"
+const TREAT_SCENE_PATH := "res://scenes/pickups/TreatPickup.tscn"
 const HAT_SPAWN_RADIUS := 28.0
 const HAT_SPAWN_MIN_RADIUS := 4.0
 
@@ -35,15 +36,26 @@ func start_wave(wave: int) -> void:
 	_spawn_timer = 0.0
 	emit_signal("wave_started", wave)
 	_spawn_hat_pickup()
+	_spawn_treat_pickup()
+
+func _random_ground_point() -> Vector3:
+	var angle: float = randf() * TAU
+	var radius: float = randf_range(HAT_SPAWN_MIN_RADIUS, HAT_SPAWN_RADIUS)
+	return Vector3(cos(angle) * radius, 0.9, sin(angle) * radius)
 
 func _spawn_hat_pickup() -> void:
 	var scene: PackedScene = load(HAT_SCENE_PATH)
 	var hat: Area3D = scene.instantiate()
 	get_tree().current_scene.add_child(hat)
-	var angle: float = randf() * TAU
-	var radius: float = randf_range(HAT_SPAWN_MIN_RADIUS, HAT_SPAWN_RADIUS)
-	hat.global_position = Vector3(cos(angle) * radius, 0.9, sin(angle) * radius)
+	hat.global_position = _random_ground_point()
 	hat.setup(HatDB.get_random_id())
+
+func _spawn_treat_pickup() -> void:
+	var scene: PackedScene = load(TREAT_SCENE_PATH)
+	var treat: Area3D = scene.instantiate()
+	get_tree().current_scene.add_child(treat)
+	treat.global_position = _random_ground_point()
+	treat.setup(TreatDB.get_random_id())
 
 func _process(delta: float) -> void:
 	if not spawning or Game.state != Game.State.PLAYING:
@@ -89,4 +101,7 @@ func clear_all_enemies() -> void:
 	for h in get_tree().get_nodes_in_group("hat_pickups"):
 		if is_instance_valid(h):
 			h.queue_free()
+	for t in get_tree().get_nodes_in_group("treat_pickups"):
+		if is_instance_valid(t):
+			t.queue_free()
 	alive_count = 0

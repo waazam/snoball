@@ -112,23 +112,35 @@ position = Vector3(0, 0.75, 0.5)
 mesh = SubResource("SphereMesh_tail")
 surface_material_override/0 = SubResource("StandardMaterial3D_tail")
 
-[node name="LegFrontLeft" type="MeshInstance3D" parent="."]
-position = Vector3(-0.18, 0.28, -0.35)
+[node name="LegFrontLeft" type="Node3D" parent="."]
+position = Vector3(-0.18, 0.555, -0.35)
+
+[node name="Mesh" type="MeshInstance3D" parent="LegFrontLeft"]
+position = Vector3(0, -0.275, 0)
 mesh = SubResource("CylinderMesh_leg")
 surface_material_override/0 = SubResource("StandardMaterial3D_leg")
 
-[node name="LegFrontRight" type="MeshInstance3D" parent="."]
-position = Vector3(0.18, 0.28, -0.35)
+[node name="LegFrontRight" type="Node3D" parent="."]
+position = Vector3(0.18, 0.555, -0.35)
+
+[node name="Mesh" type="MeshInstance3D" parent="LegFrontRight"]
+position = Vector3(0, -0.275, 0)
 mesh = SubResource("CylinderMesh_leg")
 surface_material_override/0 = SubResource("StandardMaterial3D_leg")
 
-[node name="LegBackLeft" type="MeshInstance3D" parent="."]
-position = Vector3(-0.18, 0.28, 0.35)
+[node name="LegBackLeft" type="Node3D" parent="."]
+position = Vector3(-0.18, 0.555, 0.35)
+
+[node name="Mesh" type="MeshInstance3D" parent="LegBackLeft"]
+position = Vector3(0, -0.275, 0)
 mesh = SubResource("CylinderMesh_leg")
 surface_material_override/0 = SubResource("StandardMaterial3D_leg")
 
-[node name="LegBackRight" type="MeshInstance3D" parent="."]
-position = Vector3(0.18, 0.28, 0.35)
+[node name="LegBackRight" type="Node3D" parent="."]
+position = Vector3(0.18, 0.555, 0.35)
+
+[node name="Mesh" type="MeshInstance3D" parent="LegBackRight"]
+position = Vector3(0, -0.275, 0)
 mesh = SubResource("CylinderMesh_leg")
 surface_material_override/0 = SubResource("StandardMaterial3D_leg")
 

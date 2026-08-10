@@ -6,11 +6,14 @@ extends CanvasLayer
 ## Buttons are disabled (and release their action) whenever the game isn't
 ## actively being played, so a finger left on a button during the upgrade
 ## screen or pause can't leak input back into play.
+##
+## There's no throw button - snowballs are thrown automatically (see
+## Player.gd's auto-throw timer), so touch controls only need to handle
+## movement/look, jump, dash, weapon switching, and pause.
 
 @onready var joystick: Control = $Joystick
 @onready var move_label: Label = $MoveLabel
 @onready var jump_button: Control = $JumpButton
-@onready var throw_button: Control = $ThrowButton
 @onready var dash_button: Control = $DashButton
 @onready var weapon_button: Control = $WeaponButton
 @onready var pause_button: Control = $PauseButton
@@ -38,7 +41,6 @@ func _on_state_changed(state: int) -> void:
 	var playing: bool = state == Game.State.PLAYING
 	joystick.set_active(playing)
 	jump_button.set_active(playing)
-	throw_button.set_active(playing)
 	weapon_button.set_active(playing)
 	dash_button.set_active(playing and Game.dash_unlocked)
 	pause_button.set_active(playing or state == Game.State.PAUSED)

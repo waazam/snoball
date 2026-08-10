@@ -1,7 +1,11 @@
 extends CharacterBody3D
 ## Third-person player controller: WASD movement relative to facing, mouse
-## look, upgradeable multi-jump, upgradeable dash, and snowball throwing
-## aimed via a screen-center raycast from the camera.
+## look, upgradeable multi-jump, upgradeable dash. Throwing is automatic at
+## a fixed cadence of 1 snowball every 0.5s - nothing in the game speeds
+## this cadence up, by design. Every throw auto-locks onto the nearest
+## enemy, and every snowball gets at least a baseline homing pull so it
+## tracks its target in flight. Coin pickups add extra snowballs per throw
+## (fanned out around the main target) instead of throwing faster.
 
 const GRAVITY := 22.0
 const MOUSE_SENS := 0.0035
@@ -13,6 +17,10 @@ const DASH_SPEED := 22.0
 const DASH_TIME := 0.18
 const SPRINT_MULT := 1.35
 const SNOWBALL_SCENE_PATH := "res://scenes/weapons/Snowball.tscn"
+const AUTO_THROW_INTERVAL := 0.5  # fixed: 1 snowball every 0.5s, always - nothing speeds this up
+const AUTO_LOCK_HOMING := 3.0
+const TARGET_SEARCH_RADIUS := 45.0
+const MULTISHOT_SPREAD_DEG := 9.0  # angle between fanned-out extra projectiles
 
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
@@ -27,7 +35,7 @@ const SNOWBALL_SCENE_PATH := "res://scenes/weapons/Snowball.tscn"
 var _hat_material: StandardMaterial3D
 
 var jumps_used: int = 0
-var throw_cooldown_left: float = 0.0
+var _throw_timer: float = 0.0
 
 var dash_charges_left: int = 1
 var dash_recharge_timer: float = 0.0
@@ -52,6 +60,7 @@ var _look_touch_index: int = -1
 func _ready() -> void:
 	add_to_group("player")
 	dash_charges_left = Game.get_dash_charges()
+	_throw_timer = AUTO_THROW_INTERVAL
 	_hat_material = StandardMaterial3D.new()
 	_hat_material.albedo_color = Color(0.8, 0.1, 0.12)
 	hat_mesh.material_override = _hat_material
@@ -101,7 +110,7 @@ func _physics_process(delta: float) -> void:
 	_handle_gravity_and_jump(delta)
 	_handle_dash(delta)
 	_handle_movement(delta)
-	_handle_throw(delta)
+	_handle_auto_throw(delta)
 	_update_animation(delta)
 	move_and_slide()
 
@@ -206,12 +215,16 @@ func _handle_dash(delta: float) -> void:
 		dash_charges_left -= 1
 		velocity.y = max(velocity.y, 0.0)
 
-# --- Throwing ----------------------------------------------------------
-func _handle_throw(delta: float) -> void:
-	throw_cooldown_left = max(0.0, throw_cooldown_left - delta)
+# --- Throwing (automatic, fixed cadence, auto-lock on nearest enemy) -----
+# Cadence is a hard-fixed 1 throw per 0.5s. Nothing in the game (kills,
+# upgrades, pickups) is allowed to change this - only the projectile COUNT
+# per throw (coins) and per-projectile speed/damage change with upgrades.
+func _handle_auto_throw(delta: float) -> void:
 	_handle_weapon_switch()
-	if Input.is_action_pressed("throw") and throw_cooldown_left <= 0.0:
+	_throw_timer -= delta
+	if _throw_timer <= 0.0:
 		_throw_snowball()
+		_throw_timer = AUTO_THROW_INTERVAL
 
 func _handle_weapon_switch() -> void:
 	if Input.is_action_just_pressed("weapon_next"):
@@ -225,35 +238,51 @@ func _handle_weapon_switch() -> void:
 			Game.set_current_weapon(ids[i - 1])
 
 func _throw_snowball() -> void:
+	var target: Node3D = _find_nearest_enemy()
+	if target == null:
+		return
 	_play_throw_animation()
 	var id: String = Game.current_weapon
 	var tier: int = Game.unlocked_weapons.get(id, 1)
 	var stats: Dictionary = SnowballDB.get_stats(id, tier).duplicate()
 	var power: float = Game.get_throw_power_mult()
 	stats["damage"] = stats.get("damage", 10.0) * power
-	stats["speed"] = stats.get("speed", 30.0) * power
-	throw_cooldown_left = stats.get("cooldown", 0.4) * Game.get_fire_rate_mult()
-	var dir: Vector3 = _get_aim_direction()
+	stats["speed"] = stats.get("speed", 30.0) * power * Game.get_projectile_speed_mult()
+	# Every throw gets at least a baseline auto-lock pull, on top of
+	# whatever homing the weapon type already has (Frost Seeker etc. keep
+	# their stronger values via maxf).
+	stats["homing"] = maxf(stats.get("homing", 0.0), AUTO_LOCK_HOMING)
+	var base_dir: Vector3 = (target.global_position + Vector3.UP - throw_point.global_position).normalized()
+	var color: Color = SnowballDB.get_color(id)
+
+	# Coin pickups add extra snowballs per throw; fan them out around the
+	# main target direction so a crowd gets hit instead of stacking on one.
+	var count: int = Game.get_projectile_count()
+	if count <= 1:
+		_spawn_snowball(base_dir, stats, color)
+		return
+	var total_spread: float = MULTISHOT_SPREAD_DEG * (count - 1)
+	var start_deg: float = -total_spread / 2.0
+	for i in count:
+		var angle_deg: float = start_deg + i * MULTISHOT_SPREAD_DEG
+		var dir: Vector3 = base_dir.rotated(Vector3.UP, deg_to_rad(angle_deg))
+		_spawn_snowball(dir, stats, color)
+
+func _spawn_snowball(dir: Vector3, stats: Dictionary, color: Color) -> void:
 	var scene: PackedScene = load(SNOWBALL_SCENE_PATH)
 	var sb: Area3D = scene.instantiate()
 	get_tree().current_scene.add_child(sb)
 	sb.global_position = throw_point.global_position
-	sb.setup(dir, stats, true, SnowballDB.get_color(id))
+	sb.setup(dir, stats, true, color)
 
-func _get_aim_direction() -> Vector3:
-	var vp := get_viewport()
-	var center: Vector2 = Vector2(vp.get_visible_rect().size) * 0.5
-	var from: Vector3 = camera.project_ray_origin(center)
-	var to: Vector3 = from + camera.project_ray_normal(center) * 250.0
-	var space_state := get_world_3d().direct_space_state
-	var query := PhysicsRayQueryParameters3D.create(from, to)
-	query.collision_mask = 1 | 4
-	query.exclude = [self]
-	var result := space_state.intersect_ray(query)
-	var target_point: Vector3 = to
-	if result:
-		target_point = result.position
-	var dir: Vector3 = target_point - throw_point.global_position
-	if dir.length() < 0.01:
-		dir = -transform.basis.z
-	return dir.normalized()
+func _find_nearest_enemy() -> Node3D:
+	var best: Node3D = null
+	var best_dist: float = TARGET_SEARCH_RADIUS
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if not is_instance_valid(e):
+			continue
+		var d: float = throw_point.global_position.distance_to(e.global_position)
+		if d < best_dist:
+			best_dist = d
+			best = e
+	return best
