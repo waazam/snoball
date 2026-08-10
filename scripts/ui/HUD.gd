@@ -1,6 +1,8 @@
 extends CanvasLayer
 
-@onready var health_label: Label = $Root/StarIcon/HealthLabel
+@onready var health_label: Label = $Root/HeartIcon/HealthLabel
+@onready var shield_icon: Control = $Root/ShieldIcon
+@onready var armor_label: Label = $Root/ShieldIcon/ArmorLabel
 @onready var ball_icon: Control = $Root/BallIcon
 @onready var ball_tier_label: Label = $Root/BallIcon/TierLabel
 @onready var weapon_name_label: Label = $Root/WeaponNameLabel
@@ -9,15 +11,19 @@ extends CanvasLayer
 @onready var pause_overlay: Control = $Root/PauseOverlay
 @onready var toast_label: Label = $Root/ToastLabel
 
+const ARMOR_COLOR := Color(0.55, 0.6, 0.68)
+
 var _toast_timer: float = 0.0
 
 func _ready() -> void:
 	Game.health_changed.connect(_on_health_changed)
+	Game.armor_changed.connect(_on_armor_changed)
 	Game.wave_changed.connect(_on_wave_changed)
 	Game.kills_changed.connect(_on_kills_changed)
 	Game.weapon_changed.connect(_on_weapon_changed)
 	Game.upgrade_picked.connect(_on_upgrade_picked)
 	_on_health_changed(Game.health, Game.max_health)
+	_on_armor_changed(Game.armor, Game.max_armor)
 	_on_wave_changed(Game.wave)
 	_on_kills_changed(Game.kills)
 	_on_weapon_changed(Game.current_weapon, Game.unlocked_weapons.get(Game.current_weapon, 1))
@@ -32,6 +38,14 @@ func _process(delta: float) -> void:
 
 func _on_health_changed(current: float, max_health: float) -> void:
 	health_label.text = "%d/%d" % [int(current), int(max_health)]
+
+func _on_armor_changed(current: float, max_armor: float) -> void:
+	if max_armor <= 0.0:
+		shield_icon.fill_color = Color(ARMOR_COLOR, 0.25)
+		armor_label.text = ""
+	else:
+		shield_icon.fill_color = ARMOR_COLOR
+		armor_label.text = "%d/%d" % [int(current), int(max_armor)]
 
 func _on_wave_changed(wave: int) -> void:
 	wave_label.text = "WAVE %d" % wave

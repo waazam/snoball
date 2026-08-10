@@ -4,10 +4,12 @@ extends Node
 ## stacks) and the signal bus the rest of the game listens to.
 
 signal health_changed(current: float, max_health: float)
+signal armor_changed(current: float, max_armor: float)
 signal wave_changed(wave: int)
 signal score_changed(score: int)
 signal kills_changed(kills: int)
 signal player_died
+signal hat_equipped(hat_id: String)
 signal state_changed(new_state: int)
 signal weapon_changed(id: String, tier: int)
 signal upgrades_applied
@@ -23,6 +25,9 @@ var score: int = 0
 var kills: int = 0
 var max_health: float = 100.0
 var health: float = 100.0
+var max_armor: float = 0.0
+var armor: float = 0.0
+var equipped_hat: String = ""
 
 var base_move_speed: float = 6.0
 var base_jump_velocity: float = 8.0
@@ -71,8 +76,12 @@ func reset_run() -> void:
 	current_weapon = "classic"
 	max_health = 100.0
 	health = max_health
+	max_armor = 0.0
+	armor = 0.0
+	equipped_hat = ""
 	_regen_accum = 0.0
 	emit_signal("health_changed", health, max_health)
+	emit_signal("armor_changed", armor, max_armor)
 	emit_signal("score_changed", score)
 	emit_signal("kills_changed", kills)
 	emit_signal("wave_changed", wave)
@@ -106,14 +115,30 @@ func add_kill() -> void:
 func take_damage(amount: float) -> void:
 	if state != State.PLAYING:
 		return
-	health = max(0.0, health - amount)
-	emit_signal("health_changed", health, max_health)
+	var remaining: float = amount
+	if armor > 0.0:
+		var absorbed: float = min(armor, remaining)
+		armor -= absorbed
+		remaining -= absorbed
+		emit_signal("armor_changed", armor, max_armor)
+	if remaining > 0.0:
+		health = max(0.0, health - remaining)
+		emit_signal("health_changed", health, max_health)
 	if health <= 0.0:
 		emit_signal("player_died")
 
 func heal(amount: float) -> void:
 	health = min(max_health, health + amount)
 	emit_signal("health_changed", health, max_health)
+
+func add_armor(amount: float) -> void:
+	max_armor += amount
+	armor = max_armor
+	emit_signal("armor_changed", armor, max_armor)
+
+func equip_hat(hat_id: String) -> void:
+	equipped_hat = hat_id
+	emit_signal("hat_equipped", hat_id)
 
 func advance_wave() -> void:
 	wave += 1

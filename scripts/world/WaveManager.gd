@@ -7,6 +7,9 @@ signal wave_started(wave: int)
 signal wave_cleared(wave: int)
 
 const SPAWN_STAGGER := 0.35
+const HAT_SCENE_PATH := "res://scenes/pickups/HatPickup.tscn"
+const HAT_SPAWN_RADIUS := 28.0
+const HAT_SPAWN_MIN_RADIUS := 4.0
 
 @export var spawn_points_path: NodePath = NodePath("../SpawnPoints")
 
@@ -31,6 +34,16 @@ func start_wave(wave: int) -> void:
 	_spawn_queue = EnemyDB.get_wave_composition(wave)
 	_spawn_timer = 0.0
 	emit_signal("wave_started", wave)
+	_spawn_hat_pickup()
+
+func _spawn_hat_pickup() -> void:
+	var scene: PackedScene = load(HAT_SCENE_PATH)
+	var hat: Area3D = scene.instantiate()
+	get_tree().current_scene.add_child(hat)
+	var angle: float = randf() * TAU
+	var radius: float = randf_range(HAT_SPAWN_MIN_RADIUS, HAT_SPAWN_RADIUS)
+	hat.global_position = Vector3(cos(angle) * radius, 0.9, sin(angle) * radius)
+	hat.setup(HatDB.get_random_id())
 
 func _process(delta: float) -> void:
 	if not spawning or Game.state != Game.State.PLAYING:
@@ -73,4 +86,7 @@ func clear_all_enemies() -> void:
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(e):
 			e.queue_free()
+	for h in get_tree().get_nodes_in_group("hat_pickups"):
+		if is_instance_valid(h):
+			h.queue_free()
 	alive_count = 0

@@ -22,6 +22,9 @@ const SNOWBALL_SCENE_PATH := "res://scenes/weapons/Snowball.tscn"
 @onready var left_hip: Node3D = $LeftHip
 @onready var right_hip: Node3D = $RightHip
 @onready var throw_point: Marker3D = $RightShoulder/ThrowPoint
+@onready var hat_mesh: MeshInstance3D = $Hat
+
+var _hat_material: StandardMaterial3D
 
 var jumps_used: int = 0
 var throw_cooldown_left: float = 0.0
@@ -49,6 +52,19 @@ var _look_touch_index: int = -1
 func _ready() -> void:
 	add_to_group("player")
 	dash_charges_left = Game.get_dash_charges()
+	_hat_material = StandardMaterial3D.new()
+	_hat_material.albedo_color = Color(0.8, 0.1, 0.12)
+	hat_mesh.material_override = _hat_material
+	Game.hat_equipped.connect(_on_hat_equipped)
+	if Game.equipped_hat != "":
+		_on_hat_equipped(Game.equipped_hat)
+
+func _on_hat_equipped(hat_id: String) -> void:
+	var data: Dictionary = HatDB.get_data(hat_id)
+	_hat_material.albedo_color = data.get("color", Color(0.8, 0.1, 0.12))
+	var tw := create_tween()
+	tw.tween_property(hat_mesh, "scale", Vector3(1.3, 1.3, 1.3), 0.1)
+	tw.tween_property(hat_mesh, "scale", Vector3.ONE, 0.15)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if Game.state != Game.State.PLAYING:
