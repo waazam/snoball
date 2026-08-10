@@ -5,6 +5,7 @@ extends CharacterBody3D
 
 const GRAVITY := 22.0
 const MOUSE_SENS := 0.0035
+const TOUCH_LOOK_SENS := 0.006
 const PITCH_MIN := -0.7   # ~-40 deg
 const PITCH_MAX := 1.2    # ~70 deg
 const DASH_SPEED := 22.0
@@ -42,9 +43,16 @@ func _unhandled_input(event: InputEvent) -> void:
 	if Game.state != Game.State.PLAYING:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * MOUSE_SENS)
-		var pitch: float = spring_arm.rotation.x - event.relative.y * MOUSE_SENS
-		spring_arm.rotation.x = clampf(pitch, PITCH_MIN, PITCH_MAX)
+		_apply_look(event.relative, MOUSE_SENS)
+	elif event is InputEventScreenDrag:
+		# Only reaches here if no touch UI control (joystick/button) claimed
+		# this finger first, so any unhandled drag is a camera-look drag.
+		_apply_look(event.relative, TOUCH_LOOK_SENS)
+
+func _apply_look(relative: Vector2, sens: float) -> void:
+	rotate_y(-relative.x * sens)
+	var pitch: float = spring_arm.rotation.x - relative.y * sens
+	spring_arm.rotation.x = clampf(pitch, PITCH_MIN, PITCH_MAX)
 
 func _physics_process(delta: float) -> void:
 	if Game.state != Game.State.PLAYING:

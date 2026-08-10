@@ -48,7 +48,7 @@ func _toggle_pause() -> void:
 	elif Game.state == Game.State.PAUSED:
 		Game.set_state(Game.State.PLAYING)
 		hud.set_paused(false)
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		_capture_mouse_if_desktop()
 
 # --- Run lifecycle -------------------------------------------------------
 func _on_start_pressed() -> void:
@@ -60,7 +60,7 @@ func _begin_run() -> void:
 	_spawn_arena_and_player()
 	hud.visible = true
 	game_over_screen.visible = false
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_capture_mouse_if_desktop()
 	Game.set_state(Game.State.PLAYING)
 	Game.advance_wave()
 	wave_manager.start_wave(Game.wave)
@@ -89,8 +89,14 @@ func _on_wave_cleared(_wave: int) -> void:
 
 func _on_upgrade_selected() -> void:
 	Game.set_state(Game.State.PLAYING)
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_capture_mouse_if_desktop()
 	_next_wave_timer = NEXT_WAVE_DELAY
+
+func _capture_mouse_if_desktop() -> void:
+	# Pointer lock is a desktop-mouse concept; skip it on touchscreens where
+	# there's no cursor to hide/lock in the first place.
+	if not DisplayServer.is_touchscreen_available():
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _start_next_wave() -> void:
 	Game.advance_wave()
