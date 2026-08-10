@@ -21,6 +21,7 @@ const AUTO_THROW_INTERVAL := 0.5  # fixed: 1 snowball every 0.5s, always - nothi
 const AUTO_LOCK_HOMING := 3.0
 const TARGET_SEARCH_RADIUS := 45.0
 const MULTISHOT_SPREAD_DEG := 9.0  # angle between fanned-out extra projectiles
+const LOOK_ZONE_MIN_X_RATIO := 0.6  # only the right side of the screen can ever start a look-drag
 
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
@@ -94,10 +95,22 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _handle_look_touch(event: InputEventScreenTouch) -> void:
 	if event.pressed:
-		if _look_touch_index == -1:
+		# Positional guard, not just "wasn't claimed by something else": a
+		# touch can only ever become the look-finger if it starts on the
+		# right side of the screen. Without this, a movement thumb that
+		# ever slips off the joystick's exact hit-region for a single frame
+		# (extremely common - thumbs shift constantly during a hold) would
+		# get misclassified as the look-finger, and its next drag would
+		# yank the camera. This makes that class of bug impossible instead
+		# of just less likely.
+		if _look_touch_index == -1 and _is_in_look_zone(event.position):
 			_look_touch_index = event.index
 	elif event.index == _look_touch_index:
 		_look_touch_index = -1
+
+func _is_in_look_zone(screen_pos: Vector2) -> bool:
+	var vp_width: float = get_viewport().get_visible_rect().size.x
+	return screen_pos.x >= vp_width * LOOK_ZONE_MIN_X_RATIO
 
 func _apply_look(relative: Vector2, sens: float) -> void:
 	rotate_y(-relative.x * sens)
