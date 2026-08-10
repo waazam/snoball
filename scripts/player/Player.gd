@@ -6,6 +6,7 @@ extends CharacterBody3D
 const GRAVITY := 22.0
 const MOUSE_SENS := 0.0035
 const TOUCH_LOOK_SENS := 0.006
+const MAX_TOUCH_DRAG_STEP := 120.0  # px/event; guards against touch-index reuse glitches
 const PITCH_MIN := -0.7   # ~-40 deg
 const PITCH_MAX := 1.2    # ~70 deg
 const DASH_SPEED := 22.0
@@ -35,6 +36,16 @@ var _anim_time: float = 0.0
 var _is_throwing: bool = false
 var _throw_tween: Tween = null
 
+# Camera-look owns exactly one finger at a time, and only ever trusts drag
+# events for the index it personally saw touch down. This is what stops a
+# second finger (e.g. the movement joystick) from ever being able to yank
+# the camera: without this, a browser reassigning/reusing a touch index
+# mid-multitouch can hand us a drag "relative" that's really a jump between
+# two different fingers' positions, which reads as the camera snapping/
+# resetting. MAX_TOUCH_DRAG_STEP below is a second line of defense that
+# clamps any single-event delta that's still suspiciously large.
+var _look_touch_index: int = -1
+
 func _ready() -> void:
 	add_to_group("player")
 	dash_charges_left = Game.get_dash_charges()
@@ -44,10 +55,24 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		_apply_look(event.relative, MOUSE_SENS)
+	elif event is InputEventScreenTouch:
+		_handle_look_touch(event)
 	elif event is InputEventScreenDrag:
 		# Only reaches here if no touch UI control (joystick/button) claimed
-		# this finger first, so any unhandled drag is a camera-look drag.
-		_apply_look(event.relative, TOUCH_LOOK_SENS)
+		# this finger first. Still ignore it unless it's the one finger we
+		# already registered as the look-finger via _handle_look_touch.
+		if event.index == _look_touch_index:
+			var rel: Vector2 = event.relative
+			if rel.length() > MAX_TOUCH_DRAG_STEP:
+				rel = rel.normalized() * MAX_TOUCH_DRAG_STEP
+			_apply_look(rel, TOUCH_LOOK_SENS)
+
+func _handle_look_touch(event: InputEventScreenTouch) -> void:
+	if event.pressed:
+		if _look_touch_index == -1:
+			_look_touch_index = event.index
+	elif event.index == _look_touch_index:
+		_look_touch_index = -1
 
 func _apply_look(relative: Vector2, sens: float) -> void:
 	rotate_y(-relative.x * sens)
