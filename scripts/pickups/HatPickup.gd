@@ -1,9 +1,15 @@
 extends Area3D
-## A hat resting on the ground. Touching it applies HatDB's stat bonus and
-## re-equips the player's hat visually (see Player._on_hat_equipped).
+## A hat resting on the ground, spinning and bobbing in place. Touching it
+## applies HatDB's stat bonus and re-equips the player's hat visually (see
+## Player._on_hat_equipped) using the same procedural shape (HatVisuals).
 
-@onready var hat_mesh: MeshInstance3D = $HatCone
-@onready var band_mesh: MeshInstance3D = $HatBand
+const SPIN_SPEED := 2.2  # rad/s
+# HatVisuals sizes hats to actually fit the player's small head; blown up to
+# this scale on the ground so they're still readable/collectible at a
+# glance from a distance.
+const PICKUP_VISUAL_SCALE := 1.8
+
+@onready var hat_anchor: Node3D = $HatAnchor
 
 var hat_id: String = ""
 var _bob_time: float = 0.0
@@ -12,21 +18,22 @@ var _collected: bool = false
 func _ready() -> void:
 	add_to_group("hat_pickups")
 	_bob_time = randf() * TAU
+	rotate_y(randf() * TAU)  # so a field of hats doesn't spin in lockstep
 	monitoring = true
 	body_entered.connect(_on_body_entered)
 
 func setup(id: String) -> void:
 	hat_id = id
 	var data: Dictionary = HatDB.get_data(id)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = data.get("color", Color.WHITE)
-	hat_mesh.material_override = mat
+	var visual: Node3D = HatVisuals.build(data.get("shape", "top_hat"), data.get("color", Color.WHITE))
+	visual.scale = Vector3.ONE * PICKUP_VISUAL_SCALE
+	hat_anchor.add_child(visual)
 
 func _process(delta: float) -> void:
 	if _collected:
 		return
 	_bob_time += delta
-	rotate_y(delta * 1.4)
+	rotate_y(delta * SPIN_SPEED)
 	position.y = 0.9 + sin(_bob_time * 1.6) * 0.15
 
 func _on_body_entered(body: Node) -> void:

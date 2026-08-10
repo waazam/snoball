@@ -22,7 +22,7 @@ const TYPES := {
 		"color": Color(0.95, 0.97, 1.0),
 		"desc": "A reliable, well-rounded pack of snow.",
 		"tiers": [
-			{"tier_name": "Classic Snowball", "damage": 10.0, "cooldown": 0.45, "speed": 30.0},
+			{"tier_name": "Classic Snowball", "damage": 12.0, "cooldown": 0.45, "speed": 30.0},
 			{"tier_name": "Packed Snowball", "damage": 16.0, "cooldown": 0.40, "speed": 32.0},
 			{"tier_name": "Ice Boulder Snowball", "damage": 24.0, "cooldown": 0.38, "speed": 34.0, "splash_radius": 2.5},
 		],

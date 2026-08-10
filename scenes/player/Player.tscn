@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/Player.gd" id="1"]
 
@@ -40,26 +40,6 @@ albedo_color = Color(0.95, 0.8, 0.65, 1)
 top_radius = 0.0
 bottom_radius = 0.05
 height = 0.14
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_hatband"]
-top_radius = 0.19
-bottom_radius = 0.19
-height = 0.06
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_white"]
-albedo_color = Color(0.97, 0.97, 0.97, 1)
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_hat"]
-top_radius = 0.01
-bottom_radius = 0.17
-height = 0.32
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hat"]
-albedo_color = Color(0.8, 0.1, 0.12, 1)
-
-[sub_resource type="SphereMesh" id="SphereMesh_pompom"]
-radius = 0.05
-height = 0.1
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_arm"]
 top_radius = 0.045
@@ -120,21 +100,8 @@ rotation_degrees = Vector3(0, 0, -80)
 mesh = SubResource("CylinderMesh_ear")
 surface_material_override/0 = SubResource("StandardMaterial3D_skin")
 
-[node name="HatBand" type="MeshInstance3D" parent="."]
-position = Vector3(0, 1.33, 0)
-mesh = SubResource("CylinderMesh_hatband")
-surface_material_override/0 = SubResource("StandardMaterial3D_white")
-
-[node name="Hat" type="MeshInstance3D" parent="."]
-position = Vector3(0, 1.49, 0)
-rotation_degrees = Vector3(0, 0, 8)
-mesh = SubResource("CylinderMesh_hat")
-surface_material_override/0 = SubResource("StandardMaterial3D_hat")
-
-[node name="HatPompom" type="MeshInstance3D" parent="."]
-position = Vector3(0.05, 1.68, 0)
-mesh = SubResource("SphereMesh_pompom")
-surface_material_override/0 = SubResource("StandardMaterial3D_white")
+[node name="HatAnchor" type="Node3D" parent="."]
+position = Vector3(0, 1.38, 0)
 
 [node name="LeftShoulder" type="Node3D" parent="."]
 position = Vector3(-0.16, 1.1, 0)

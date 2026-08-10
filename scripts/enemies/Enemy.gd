@@ -2,6 +2,8 @@ extends CharacterBody3D
 ## Enemy AI: chases the player, then either melees or (if ranged) throws
 ## snowballs once in range. Stats come from EnemyDB, scaled by wave number.
 
+const DAMAGE_NUMBER_SCRIPT := preload("res://scripts/effects/DamageNumber.gd")
+
 const GRAVITY := 22.0
 const SNOWBALL_SCENE_PATH := "res://scenes/weapons/Snowball.tscn"
 const JUMP_VELOCITY := 7.5
@@ -36,8 +38,18 @@ var _is_dashing: bool = false
 var _dash_time_left: float = 0.0
 var _dash_dir: Vector3 = Vector3.ZERO
 
+# Hit-reaction state: base scale/color captured at setup() so the punch
+# squash and flash tween relative to them instead of clobbering the
+# per-enemy size (brutes etc.) or fighting the death-shrink tween.
+var _base_scale: Vector3 = Vector3.ONE
+var _body_mat: StandardMaterial3D
+var _body_base_color: Color = Color.WHITE
+var _hit_scale_tween: Tween = null
+var _hit_flash_tween: Tween = null
+
 @onready var mesh: MeshInstance3D = $Body
 @onready var collision: CollisionShape3D = $CollisionShape3D
+@onready var health_bar: Node3D = $HealthBar
 @onready var health_fill: MeshInstance3D = $HealthBar/Fill
 @onready var throw_point: Marker3D = $ThrowPoint
 
@@ -71,10 +83,12 @@ func setup(id: String, wave: int) -> void:
 	is_ranged = stats.is_ranged
 	score_value = stats.score
 	var sc: float = stats.scale
-	scale = Vector3(sc, sc, sc)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = stats.color
-	mesh.material_override = mat
+	_base_scale = Vector3(sc, sc, sc)
+	scale = _base_scale
+	_body_base_color = stats.color
+	_body_mat = StandardMaterial3D.new()
+	_body_mat.albedo_color = stats.color
+	mesh.material_override = _body_mat
 	attack_timer = randf_range(0.0, attack_cooldown)
 	_jump_timer = randf_range(JUMP_INTERVAL_MIN, JUMP_INTERVAL_MAX)
 	_dash_timer = randf_range(DASH_INTERVAL_MIN, DASH_INTERVAL_MAX)
@@ -199,6 +213,8 @@ func take_damage(amount: float, freeze_duration: float = 0.0, freeze_factor: flo
 		return
 	health -= amount
 	_update_health_bar()
+	_spawn_damage_number(amount)
+	_play_hit_reaction()
 	if freeze_duration > 0.0:
 		slow_timer = max(slow_timer, freeze_duration)
 		slow_factor = min(slow_factor, freeze_factor)
@@ -207,6 +223,33 @@ func take_damage(amount: float, freeze_duration: float = 0.0, freeze_factor: flo
 
 func apply_knockback(v: Vector3) -> void:
 	external_velocity += v
+
+## Floating number above the head, at the same anchor the health bar
+## already uses (per-enemy-type tuned height, so it lines up whether this
+## is a low reindeer or a tall elf).
+func _spawn_damage_number(amount: float) -> void:
+	var label := Label3D.new()
+	label.set_script(DAMAGE_NUMBER_SCRIPT)
+	get_tree().current_scene.add_child(label)
+	label.global_position = health_bar.global_position + Vector3(0, 0.25, 0)
+	label.setup(amount)
+
+## Quick squash-and-flash punch so a hit reads clearly even in a crowd: the
+## body mesh flashes white and the whole enemy squashes/rebounds, both
+## relative to its own base scale/color (see setup()) so they don't fight
+## the per-enemy size (brutes etc.) or the death-shrink tween.
+func _play_hit_reaction() -> void:
+	if _hit_scale_tween and _hit_scale_tween.is_valid():
+		_hit_scale_tween.kill()
+	scale = _base_scale * Vector3(1.18, 0.82, 1.18)
+	_hit_scale_tween = create_tween()
+	_hit_scale_tween.tween_property(self, "scale", _base_scale, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+	if _hit_flash_tween and _hit_flash_tween.is_valid():
+		_hit_flash_tween.kill()
+	_body_mat.albedo_color = Color(1, 1, 1)
+	_hit_flash_tween = create_tween()
+	_hit_flash_tween.tween_property(_body_mat, "albedo_color", _body_base_color, 0.16)
 
 func _update_health_bar() -> void:
 	var ratio: float = clampf(health / max_health, 0.0, 1.0)
@@ -217,6 +260,8 @@ func _die() -> void:
 	if _dead:
 		return
 	_dead = true
+	if _hit_scale_tween and _hit_scale_tween.is_valid():
+		_hit_scale_tween.kill()
 	Game.add_score(score_value)
 	Game.add_kill()
 	_maybe_drop_coin()

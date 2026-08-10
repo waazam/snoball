@@ -1,6 +1,7 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scripts/enemies/Enemy.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/enemies/ChristmasLights.gd" id="2"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_reindeer"]
 radius = 0.45
@@ -28,8 +29,13 @@ albedo_color = Color(0.15, 0.1, 0.08, 1)
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_antler"]
 top_radius = 0.0
-bottom_radius = 0.035
-height = 0.32
+bottom_radius = 0.045
+height = 0.4
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_antlerTine"]
+top_radius = 0.0
+bottom_radius = 0.024
+height = 0.18
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_antler"]
 albedo_color = Color(0.78, 0.68, 0.48, 1)
@@ -98,14 +104,46 @@ surface_material_override/0 = SubResource("StandardMaterial3D_snout")
 [node name="AntlerLeft" type="MeshInstance3D" parent="."]
 position = Vector3(-0.12, 1.05, -0.5)
 rotation_degrees = Vector3(-20, 0, 18)
+scale = Vector3(3, 3, 3)
 mesh = SubResource("CylinderMesh_antler")
 surface_material_override/0 = SubResource("StandardMaterial3D_antler")
+
+[node name="TineA" type="MeshInstance3D" parent="AntlerLeft"]
+position = Vector3(0, -0.03, 0)
+rotation_degrees = Vector3(15, 0, 40)
+mesh = SubResource("CylinderMesh_antlerTine")
+surface_material_override/0 = SubResource("StandardMaterial3D_antler")
+
+[node name="TineB" type="MeshInstance3D" parent="AntlerLeft"]
+position = Vector3(0, 0.08, 0)
+rotation_degrees = Vector3(-20, 0, 50)
+mesh = SubResource("CylinderMesh_antlerTine")
+surface_material_override/0 = SubResource("StandardMaterial3D_antler")
+
+[node name="Lights" type="Node3D" parent="AntlerLeft"]
+script = ExtResource("2")
 
 [node name="AntlerRight" type="MeshInstance3D" parent="."]
 position = Vector3(0.12, 1.05, -0.5)
 rotation_degrees = Vector3(-20, 0, -18)
+scale = Vector3(3, 3, 3)
 mesh = SubResource("CylinderMesh_antler")
 surface_material_override/0 = SubResource("StandardMaterial3D_antler")
+
+[node name="TineA" type="MeshInstance3D" parent="AntlerRight"]
+position = Vector3(0, -0.03, 0)
+rotation_degrees = Vector3(15, 0, -40)
+mesh = SubResource("CylinderMesh_antlerTine")
+surface_material_override/0 = SubResource("StandardMaterial3D_antler")
+
+[node name="TineB" type="MeshInstance3D" parent="AntlerRight"]
+position = Vector3(0, 0.08, 0)
+rotation_degrees = Vector3(-20, 0, -50)
+mesh = SubResource("CylinderMesh_antlerTine")
+surface_material_override/0 = SubResource("StandardMaterial3D_antler")
+
+[node name="Lights" type="Node3D" parent="AntlerRight"]
+script = ExtResource("2")
 
 [node name="Tail" type="MeshInstance3D" parent="."]
 position = Vector3(0, 0.75, 0.5)

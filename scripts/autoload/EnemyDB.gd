@@ -55,23 +55,23 @@ func get_scene_path(id: String) -> String:
 func get_scaled_stats(id: String, wave: int) -> Dictionary:
 	var s := get_stats(id)
 	var w: int = maxi(0, wave - 1)
-	s["health"] = s["health"] * (1.0 + w * 0.16)
-	s["damage"] = s["damage"] * (1.0 + w * 0.10)
-	s["speed"] = s["speed"] * (1.0 + minf(w * 0.045, 0.8))
+	s["health"] = s["health"] * (1.0 + w * 0.2)
+	s["damage"] = s["damage"] * (1.0 + w * 0.14)
+	s["speed"] = s["speed"] * (1.0 + minf(w * 0.06, 1.0))
 	return s
 
 ## Returns an Array[String] of enemy ids to spawn for the given wave.
 func get_wave_composition(wave: int) -> Array:
 	var comp: Array = []
-	var grunts: int = 3 + wave
+	var grunts: int = 4 + wave * 2
 	for i in grunts:
 		comp.append("grunt")
 	if wave >= 2:
-		var throwers: int = 1 + int(wave / 2)
+		var throwers: int = 1 + wave
 		for i in throwers:
 			comp.append("thrower")
-	if wave >= 4:
-		var brutes: int = 1 + int((wave - 4) / 3)
+	if wave >= 3:
+		var brutes: int = 1 + int(wave / 2)
 		for i in brutes:
 			comp.append("brute")
 	comp.shuffle()

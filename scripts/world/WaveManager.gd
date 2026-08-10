@@ -6,7 +6,7 @@ extends Node3D
 signal wave_started(wave: int)
 signal wave_cleared(wave: int)
 
-const SPAWN_STAGGER := 0.35
+const SPAWN_STAGGER := 0.26
 const HAT_SCENE_PATH := "res://scenes/pickups/HatPickup.tscn"
 const TREAT_SCENE_PATH := "res://scenes/pickups/TreatPickup.tscn"
 const HAT_SPAWN_RADIUS := 28.0

@@ -1,11 +1,15 @@
 extends CharacterBody3D
 ## Third-person player controller: WASD movement relative to facing, mouse
-## look, upgradeable multi-jump, upgradeable dash. Throwing is automatic at
-## a fixed cadence of 1 snowball every 0.5s - nothing in the game speeds
-## this cadence up, by design. Every throw auto-locks onto the nearest
-## enemy, and every snowball gets at least a baseline homing pull so it
-## tracks its target in flight. Coin pickups add extra snowballs per throw
-## (fanned out around the main target) instead of throwing faster.
+## look, upgradeable multi-jump, upgradeable dash. The primary snowball
+## throws automatically at a fixed cadence of 1 every 0.5s - nothing in the
+## game speeds this cadence up, by design. Coin pickups add extra snowballs
+## instead of throwing the primary faster: those extras fire on their own,
+## faster, independent cadence, phase-offset so they land in the gaps
+## between primary throws (alternating rather than firing in lockstep with
+## it), and each extra always locks onto a different enemy than whatever
+## the primary is currently targeting (and than each other), instead of all
+## piling onto the same target. Every throw - primary or extra - gets at
+## least a baseline homing pull so it tracks its target in flight.
 
 const GRAVITY := 22.0
 const MOUSE_SENS := 0.0035
@@ -17,10 +21,10 @@ const DASH_SPEED := 22.0
 const DASH_TIME := 0.18
 const SPRINT_MULT := 1.35
 const SNOWBALL_SCENE_PATH := "res://scenes/weapons/Snowball.tscn"
-const AUTO_THROW_INTERVAL := 0.5  # fixed: 1 snowball every 0.5s, always - nothing speeds this up
+const AUTO_THROW_INTERVAL := 0.5  # fixed: 1 primary snowball every 0.5s, always - nothing speeds this up
+const EXTRA_THROW_INTERVAL := 0.35  # extra (proj_count) snowballs fire on their own, faster cadence
 const AUTO_LOCK_HOMING := 3.0
 const TARGET_SEARCH_RADIUS := 45.0
-const MULTISHOT_SPREAD_DEG := 9.0  # angle between fanned-out extra projectiles
 const LOOK_ZONE_MIN_X_RATIO := 0.6  # only the right side of the screen can ever start a look-drag
 
 @onready var camera_pivot: Node3D = $CameraPivot
@@ -31,12 +35,11 @@ const LOOK_ZONE_MIN_X_RATIO := 0.6  # only the right side of the screen can ever
 @onready var left_hip: Node3D = $LeftHip
 @onready var right_hip: Node3D = $RightHip
 @onready var throw_point: Marker3D = $RightShoulder/ThrowPoint
-@onready var hat_mesh: MeshInstance3D = $Hat
-
-var _hat_material: StandardMaterial3D
+@onready var hat_anchor: Node3D = $HatAnchor
 
 var jumps_used: int = 0
 var _throw_timer: float = 0.0
+var _extra_throw_timer: float = 0.0
 
 var dash_charges_left: int = 1
 var dash_recharge_timer: float = 0.0
@@ -62,19 +65,25 @@ func _ready() -> void:
 	add_to_group("player")
 	dash_charges_left = Game.get_dash_charges()
 	_throw_timer = AUTO_THROW_INTERVAL
-	_hat_material = StandardMaterial3D.new()
-	_hat_material.albedo_color = Color(0.8, 0.1, 0.12)
-	hat_mesh.material_override = _hat_material
+	# Half-interval head start so the first extra volley lands between the
+	# first two primary throws instead of on top of the first one.
+	_extra_throw_timer = EXTRA_THROW_INTERVAL / 2.0
 	Game.hat_equipped.connect(_on_hat_equipped)
+	# Bare-headed by default - a hat only appears once one is actually picked
+	# up (Game.equipped_hat starts as "" on every fresh run).
 	if Game.equipped_hat != "":
 		_on_hat_equipped(Game.equipped_hat)
 
 func _on_hat_equipped(hat_id: String) -> void:
+	for c in hat_anchor.get_children():
+		c.queue_free()
 	var data: Dictionary = HatDB.get_data(hat_id)
-	_hat_material.albedo_color = data.get("color", Color(0.8, 0.1, 0.12))
+	var visual: Node3D = HatVisuals.build(data.get("shape", "top_hat"), data.get("color", Color(0.8, 0.1, 0.12)))
+	hat_anchor.add_child(visual)
+	visual.scale = Vector3.ZERO
 	var tw := create_tween()
-	tw.tween_property(hat_mesh, "scale", Vector3(1.3, 1.3, 1.3), 0.1)
-	tw.tween_property(hat_mesh, "scale", Vector3.ONE, 0.15)
+	tw.tween_property(visual, "scale", Vector3(1.3, 1.3, 1.3), 0.1)
+	tw.tween_property(visual, "scale", Vector3.ONE, 0.15)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if Game.state != Game.State.PLAYING:
@@ -229,15 +238,22 @@ func _handle_dash(delta: float) -> void:
 		velocity.y = max(velocity.y, 0.0)
 
 # --- Throwing (automatic, fixed cadence, auto-lock on nearest enemy) -----
-# Cadence is a hard-fixed 1 throw per 0.5s. Nothing in the game (kills,
-# upgrades, pickups) is allowed to change this - only the projectile COUNT
-# per throw (coins) and per-projectile speed/damage change with upgrades.
+# The primary is a hard-fixed 1 throw per 0.5s - nothing in the game (kills,
+# upgrades, pickups) is allowed to change that. The projectile COUNT from
+# coins instead spawns extra throws on their own separate, faster timer
+# (EXTRA_THROW_INTERVAL), phase-started at a half-interval offset so they
+# land in the gaps between primary throws rather than firing alongside
+# them. Per-projectile speed/damage still scale with upgrades either way.
 func _handle_auto_throw(delta: float) -> void:
 	_handle_weapon_switch()
 	_throw_timer -= delta
 	if _throw_timer <= 0.0:
 		_throw_snowball()
 		_throw_timer = AUTO_THROW_INTERVAL
+	_extra_throw_timer -= delta
+	if _extra_throw_timer <= 0.0:
+		_throw_extra_snowballs()
+		_extra_throw_timer = EXTRA_THROW_INTERVAL
 
 func _handle_weapon_switch() -> void:
 	if Input.is_action_just_pressed("weapon_next"):
@@ -250,11 +266,40 @@ func _handle_weapon_switch() -> void:
 		if Input.is_action_just_pressed("weapon_%d" % i) and i - 1 < ids.size():
 			Game.set_current_weapon(ids[i - 1])
 
+## The primary throw: always exactly 1 snowball, always at the single
+## nearest enemy.
 func _throw_snowball() -> void:
 	var target: Node3D = _find_nearest_enemy()
 	if target == null:
 		return
 	_play_throw_animation()
+	var dir: Vector3 = (target.global_position + Vector3.UP - throw_point.global_position).normalized()
+	_spawn_snowball(dir, _current_throw_stats(), SnowballDB.get_color(Game.current_weapon))
+
+## The extra (proj_count) throws: fire together on their own cadence, each
+## locked onto a different enemy than the current primary target and than
+## each other, instead of piling onto/fanning around one target. Gracefully
+## throws fewer than the full count if there aren't enough distinct enemies
+## in range.
+func _throw_extra_snowballs() -> void:
+	var extra_count: int = Game.get_projectile_count() - 1
+	if extra_count <= 0:
+		return
+	var exclude: Array = []
+	var primary_target: Node3D = _find_nearest_enemy()
+	if primary_target != null:
+		exclude.append(primary_target)
+	var targets: Array = _find_nearest_enemies(extra_count, exclude)
+	if targets.is_empty():
+		return
+	_play_throw_animation()
+	var stats: Dictionary = _current_throw_stats()
+	var color: Color = SnowballDB.get_color(Game.current_weapon)
+	for target in targets:
+		var dir: Vector3 = (target.global_position + Vector3.UP - throw_point.global_position).normalized()
+		_spawn_snowball(dir, stats, color)
+
+func _current_throw_stats() -> Dictionary:
 	var id: String = Game.current_weapon
 	var tier: int = Game.unlocked_weapons.get(id, 1)
 	var stats: Dictionary = SnowballDB.get_stats(id, tier).duplicate()
@@ -265,21 +310,7 @@ func _throw_snowball() -> void:
 	# whatever homing the weapon type already has (Frost Seeker etc. keep
 	# their stronger values via maxf).
 	stats["homing"] = maxf(stats.get("homing", 0.0), AUTO_LOCK_HOMING)
-	var base_dir: Vector3 = (target.global_position + Vector3.UP - throw_point.global_position).normalized()
-	var color: Color = SnowballDB.get_color(id)
-
-	# Coin pickups add extra snowballs per throw; fan them out around the
-	# main target direction so a crowd gets hit instead of stacking on one.
-	var count: int = Game.get_projectile_count()
-	if count <= 1:
-		_spawn_snowball(base_dir, stats, color)
-		return
-	var total_spread: float = MULTISHOT_SPREAD_DEG * (count - 1)
-	var start_deg: float = -total_spread / 2.0
-	for i in count:
-		var angle_deg: float = start_deg + i * MULTISHOT_SPREAD_DEG
-		var dir: Vector3 = base_dir.rotated(Vector3.UP, deg_to_rad(angle_deg))
-		_spawn_snowball(dir, stats, color)
+	return stats
 
 func _spawn_snowball(dir: Vector3, stats: Dictionary, color: Color) -> void:
 	var scene: PackedScene = load(SNOWBALL_SCENE_PATH)
@@ -287,6 +318,23 @@ func _spawn_snowball(dir: Vector3, stats: Dictionary, color: Color) -> void:
 	get_tree().current_scene.add_child(sb)
 	sb.global_position = throw_point.global_position
 	sb.setup(dir, stats, true, color)
+
+## Up to n nearest enemies (within TARGET_SEARCH_RADIUS), skipping anything
+## in `exclude` - used to give each extra projectile its own distinct
+## target instead of stacking on the primary's.
+func _find_nearest_enemies(n: int, exclude: Array = []) -> Array:
+	var candidates: Array = []
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if not is_instance_valid(e) or e in exclude:
+			continue
+		var d: float = throw_point.global_position.distance_to(e.global_position)
+		if d < TARGET_SEARCH_RADIUS:
+			candidates.append({"node": e, "dist": d})
+	candidates.sort_custom(func(a, b): return a["dist"] < b["dist"])
+	var result: Array = []
+	for i in range(mini(n, candidates.size())):
+		result.append(candidates[i]["node"])
+	return result
 
 func _find_nearest_enemy() -> Node3D:
 	var best: Node3D = null
