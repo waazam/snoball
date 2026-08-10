@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/Player.gd" id="1"]
 
@@ -46,6 +46,14 @@ top_radius = 0.045
 bottom_radius = 0.045
 height = 0.5
 
+[sub_resource type="SphereMesh" id="SphereMesh_shoulderJoint"]
+radius = 0.075
+height = 0.15
+
+[sub_resource type="SphereMesh" id="SphereMesh_hipJoint"]
+radius = 0.065
+height = 0.13
+
 [node name="Player" type="CharacterBody3D"]
 collision_layer = 2
 collision_mask = 1
@@ -60,6 +68,10 @@ shape = SubResource("CapsuleShape3D_collision")
 [node name="LeftHip" type="Node3D" parent="."]
 position = Vector3(-0.09, 0.68, 0)
 
+[node name="HipJoint" type="MeshInstance3D" parent="LeftHip"]
+mesh = SubResource("SphereMesh_hipJoint")
+surface_material_override/0 = SubResource("StandardMaterial3D_leg")
+
 [node name="LeftLeg" type="MeshInstance3D" parent="LeftHip"]
 position = Vector3(0, -0.31, 0)
 mesh = SubResource("CylinderMesh_leg")
@@ -67,6 +79,10 @@ surface_material_override/0 = SubResource("StandardMaterial3D_leg")
 
 [node name="RightHip" type="Node3D" parent="."]
 position = Vector3(0.09, 0.68, 0)
+
+[node name="HipJoint" type="MeshInstance3D" parent="RightHip"]
+mesh = SubResource("SphereMesh_hipJoint")
+surface_material_override/0 = SubResource("StandardMaterial3D_leg")
 
 [node name="RightLeg" type="MeshInstance3D" parent="RightHip"]
 position = Vector3(0, -0.31, 0)
@@ -104,7 +120,11 @@ surface_material_override/0 = SubResource("StandardMaterial3D_skin")
 position = Vector3(0, 1.38, 0)
 
 [node name="LeftShoulder" type="Node3D" parent="."]
-position = Vector3(-0.16, 1.1, 0)
+position = Vector3(-0.135, 0.98, 0)
+
+[node name="ShoulderJoint" type="MeshInstance3D" parent="LeftShoulder"]
+mesh = SubResource("SphereMesh_shoulderJoint")
+surface_material_override/0 = SubResource("StandardMaterial3D_skin")
 
 [node name="LeftArm" type="MeshInstance3D" parent="LeftShoulder"]
 position = Vector3(0, -0.25, 0)
@@ -112,7 +132,11 @@ mesh = SubResource("CylinderMesh_arm")
 surface_material_override/0 = SubResource("StandardMaterial3D_skin")
 
 [node name="RightShoulder" type="Node3D" parent="."]
-position = Vector3(0.16, 1.1, 0)
+position = Vector3(0.135, 0.98, 0)
+
+[node name="ShoulderJoint" type="MeshInstance3D" parent="RightShoulder"]
+mesh = SubResource("SphereMesh_shoulderJoint")
+surface_material_override/0 = SubResource("StandardMaterial3D_skin")
 
 [node name="RightArm" type="MeshInstance3D" parent="RightShoulder"]
 position = Vector3(0, -0.25, 0)
