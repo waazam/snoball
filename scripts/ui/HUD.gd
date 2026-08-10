@@ -34,7 +34,7 @@ func _on_health_changed(current: float, max_health: float) -> void:
 	health_label.text = "%d/%d" % [int(current), int(max_health)]
 
 func _on_wave_changed(wave: int) -> void:
-	wave_label.text = "Wave %d" % wave
+	wave_label.text = "WAVE %d" % wave
 
 func _on_kills_changed(kills: int) -> void:
 	kills_label.text = "Kills: %d" % kills
