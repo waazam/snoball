@@ -51,10 +51,6 @@ const LAND_SQUASH := Vector3(1.16, 0.82, 1.16)
 @onready var right_shoulder: Node3D = $RightShoulder
 @onready var throw_point: Marker3D = $RightShoulder/ThrowPoint
 @onready var hat_anchor: Node3D = $HatAnchor
-@onready var health_bar_fill: MeshInstance3D = $HealthBar/Fill
-@onready var health_bar_label: Label3D = $HealthBar/Label
-@onready var armor_bar_fill: MeshInstance3D = $ArmorBar/Fill
-@onready var armor_bar_label: Label3D = $ArmorBar/Label
 
 var jumps_used: int = 0
 var _throw_timer: float = 0.0
@@ -101,10 +97,6 @@ func _ready() -> void:
 	# up (Game.equipped_hat starts as "" on every fresh run).
 	if Game.equipped_hat != "":
 		_on_hat_equipped(Game.equipped_hat)
-	Game.health_changed.connect(_on_health_changed_update_bar)
-	Game.armor_changed.connect(_on_armor_changed_update_bar)
-	_on_health_changed_update_bar(Game.health, Game.max_health)
-	_on_armor_changed_update_bar(Game.armor, Game.max_armor)
 
 func _on_hat_equipped(hat_id: String) -> void:
 	for c in hat_anchor.get_children():
@@ -116,27 +108,6 @@ func _on_hat_equipped(hat_id: String) -> void:
 	var tw := create_tween()
 	tw.tween_property(visual, "scale", Vector3(1.3, 1.3, 1.3), 0.1)
 	tw.tween_property(visual, "scale", Vector3.ONE, 0.15)
-
-## Floating health/armor gauges over the player's own head, same visual
-## language as Enemy.gd's HealthBar (a BG quad plus a Fill quad that shrinks
-## from the right, both billboarded/no-depth-test so they always read), plus
-## a numeric label neither enemy bar has. Fill's pivot is centered, so
-## shrinking scale.x alone would shrink symmetrically from both edges -
-## shifting position.x by half the removed width keeps the left edge fixed
-## and drains the bar to the right, matching Enemy._update_health_bar.
-const BAR_HALF_WIDTH := 0.4
-
-func _on_health_changed_update_bar(current: float, max_health: float) -> void:
-	var ratio: float = clampf(current / max_health, 0.0, 1.0) if max_health > 0.0 else 0.0
-	health_bar_fill.scale.x = ratio
-	health_bar_fill.position.x = -BAR_HALF_WIDTH * (1.0 - ratio)
-	health_bar_label.text = "%d/%d" % [int(round(current)), int(round(max_health))]
-
-func _on_armor_changed_update_bar(current: float, max_armor: float) -> void:
-	var ratio: float = clampf(current / max_armor, 0.0, 1.0) if max_armor > 0.0 else 0.0
-	armor_bar_fill.scale.x = ratio
-	armor_bar_fill.position.x = -BAR_HALF_WIDTH * (1.0 - ratio)
-	armor_bar_label.text = "%d/%d" % [int(round(current)), int(round(max_armor))]
 
 func _unhandled_input(event: InputEvent) -> void:
 	if Game.state != Game.State.PLAYING:

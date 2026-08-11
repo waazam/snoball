@@ -109,6 +109,68 @@ horizontal_alignment = 1
 vertical_alignment = 1
 text = "+"
 
+[node name="HealthBar" type="Control" parent="Root"]
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = -320.0
+offset_top = -92.0
+offset_right = 320.0
+offset_bottom = -68.0
+mouse_filter = 2
+
+[node name="BG" type="ColorRect" parent="Root/HealthBar"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.05, 0.05, 0.75)
+
+[node name="Fill" type="ColorRect" parent="Root/HealthBar"]
+anchor_bottom = 1.0
+color = Color(0.88, 0.15, 0.22, 1)
+
+[node name="Label" type="Label" parent="Root/HealthBar"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "100/100"
+
+[node name="ArmorBar" type="Control" parent="Root"]
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = -320.0
+offset_top = -64.0
+offset_right = 320.0
+offset_bottom = -40.0
+mouse_filter = 2
+
+[node name="BG" type="ColorRect" parent="Root/ArmorBar"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.05, 0.05, 0.75)
+
+[node name="Fill" type="ColorRect" parent="Root/ArmorBar"]
+anchor_bottom = 1.0
+color = Color(0.55, 0.6, 0.68, 1)
+
+[node name="Label" type="Label" parent="Root/ArmorBar"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "0/0"
+
 [node name="XPBar" type="Control" parent="Root"]
 anchor_left = 0.5
 anchor_right = 0.5

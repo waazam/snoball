@@ -29,12 +29,12 @@ albedo_color = Color(0.15, 0.1, 0.08, 1)
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_antler"]
 top_radius = 0.0
-bottom_radius = 0.045
+bottom_radius = 0.022
 height = 0.4
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_antlerTine"]
 top_radius = 0.0
-bottom_radius = 0.024
+bottom_radius = 0.013
 height = 0.18
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_antler"]
@@ -103,8 +103,8 @@ surface_material_override/0 = SubResource("StandardMaterial3D_snout")
 
 [node name="AntlerLeft" type="MeshInstance3D" parent="."]
 position = Vector3(-0.12, 1.05, -0.5)
-rotation_degrees = Vector3(-20, 0, 18)
-scale = Vector3(3, 3, 3)
+rotation_degrees = Vector3(-20, 0, 35)
+scale = Vector3(3.6, 3.6, 3.6)
 mesh = SubResource("CylinderMesh_antler")
 surface_material_override/0 = SubResource("StandardMaterial3D_antler")
 
@@ -125,8 +125,8 @@ script = ExtResource("2")
 
 [node name="AntlerRight" type="MeshInstance3D" parent="."]
 position = Vector3(0.12, 1.05, -0.5)
-rotation_degrees = Vector3(-20, 0, -18)
-scale = Vector3(3, 3, 3)
+rotation_degrees = Vector3(-20, 0, -35)
+scale = Vector3(3.6, 3.6, 3.6)
 mesh = SubResource("CylinderMesh_antler")
 surface_material_override/0 = SubResource("StandardMaterial3D_antler")
 

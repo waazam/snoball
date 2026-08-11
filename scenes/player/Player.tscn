@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/Player.gd" id="1"]
 [ext_resource type="PackedScene" path="res://models/AnimationLibrary_Godot_Standard.glb" id="2"]
@@ -6,35 +6,6 @@
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_collision"]
 radius = 0.3
 height = 1.8
-
-[sub_resource type="QuadMesh" id="QuadMesh_barbg"]
-size = Vector2(0.82, 0.14)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_barbg"]
-shading_mode = 0
-albedo_color = Color(0.05, 0.05, 0.05, 0.7)
-billboard_mode = 2
-transparency = 1
-cull_mode = 2
-no_depth_test = true
-disable_receive_shadows = true
-
-[sub_resource type="QuadMesh" id="QuadMesh_barfill"]
-size = Vector2(0.8, 0.1)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_healthfill"]
-shading_mode = 0
-albedo_color = Color(0.88, 0.15, 0.22, 1)
-billboard_mode = 2
-no_depth_test = true
-disable_receive_shadows = true
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_armorfill"]
-shading_mode = 0
-albedo_color = Color(0.55, 0.6, 0.68, 1)
-billboard_mode = 2
-no_depth_test = true
-disable_receive_shadows = true
 
 [node name="Player" type="CharacterBody3D"]
 collision_layer = 2
@@ -52,50 +23,6 @@ rotation = Vector3(0, 3.14159265, 0)
 
 [node name="HatAnchor" type="Node3D" parent="."]
 position = Vector3(0, 1.62, 0)
-
-[node name="HealthBar" type="Node3D" parent="."]
-position = Vector3(0, 2.15, 0)
-
-[node name="BG" type="MeshInstance3D" parent="HealthBar"]
-mesh = SubResource("QuadMesh_barbg")
-surface_material_override/0 = SubResource("StandardMaterial3D_barbg")
-
-[node name="Fill" type="MeshInstance3D" parent="HealthBar"]
-position = Vector3(0, 0, 0.01)
-mesh = SubResource("QuadMesh_barfill")
-surface_material_override/0 = SubResource("StandardMaterial3D_healthfill")
-
-[node name="Label" type="Label3D" parent="HealthBar"]
-position = Vector3(0, 0, 0.02)
-billboard = 1
-no_depth_test = true
-font_size = 20
-outline_size = 6
-modulate = Color(1, 1, 1, 1)
-outline_modulate = Color(0, 0, 0, 1)
-text = "100/100"
-
-[node name="ArmorBar" type="Node3D" parent="."]
-position = Vector3(0, 1.97, 0)
-
-[node name="BG" type="MeshInstance3D" parent="ArmorBar"]
-mesh = SubResource("QuadMesh_barbg")
-surface_material_override/0 = SubResource("StandardMaterial3D_barbg")
-
-[node name="Fill" type="MeshInstance3D" parent="ArmorBar"]
-position = Vector3(0, 0, 0.01)
-mesh = SubResource("QuadMesh_barfill")
-surface_material_override/0 = SubResource("StandardMaterial3D_armorfill")
-
-[node name="Label" type="Label3D" parent="ArmorBar"]
-position = Vector3(0, 0, 0.02)
-billboard = 1
-no_depth_test = true
-font_size = 20
-outline_size = 6
-modulate = Color(1, 1, 1, 1)
-outline_modulate = Color(0, 0, 0, 1)
-text = "0/0"
 
 [node name="RightShoulder" type="Node3D" parent="."]
 position = Vector3(0.135, 1.45, 0)

@@ -9,6 +9,10 @@ extends CanvasLayer
 @onready var stats_list: VBoxContainer = $Root/StatsPanel/StatsList
 @onready var xp_fill: ColorRect = $Root/XPBar/Fill
 @onready var xp_level_label: Label = $Root/XPBar/LevelLabel
+@onready var health_fill: ColorRect = $Root/HealthBar/Fill
+@onready var health_label: Label = $Root/HealthBar/Label
+@onready var armor_fill: ColorRect = $Root/ArmorBar/Fill
+@onready var armor_label: Label = $Root/ArmorBar/Label
 
 const STAT_FONT_SIZE := 15
 
@@ -25,10 +29,14 @@ func _ready() -> void:
 	# the stats panel, since either can grant a stat boost.
 	Game.upgrades_applied.connect(_refresh_stats)
 	Game.hat_equipped.connect(func(_id: String) -> void: _refresh_stats())
+	Game.health_changed.connect(_on_health_changed)
+	Game.armor_changed.connect(_on_armor_changed)
 	_on_wave_changed(Game.wave)
 	_on_kills_changed(Game.kills)
 	_on_snowball_type_changed(Game.current_snowball_type)
 	_update_xp_bar()
+	_on_health_changed(Game.health, Game.max_health)
+	_on_armor_changed(Game.armor, Game.max_armor)
 	_refresh_stats()
 	pause_overlay.visible = false
 	toast_label.visible = false
@@ -62,6 +70,14 @@ func _on_snowball_type_changed(id: String) -> void:
 func _update_xp_bar() -> void:
 	xp_fill.anchor_right = Game.get_level_progress()
 	xp_level_label.text = "LV %d" % Game.get_level()
+
+func _on_health_changed(current: float, max_health: float) -> void:
+	health_fill.anchor_right = clampf(current / max_health, 0.0, 1.0) if max_health > 0.0 else 0.0
+	health_label.text = "%d/%d" % [int(round(current)), int(round(max_health))]
+
+func _on_armor_changed(current: float, max_armor: float) -> void:
+	armor_fill.anchor_right = clampf(current / max_armor, 0.0, 1.0) if max_armor > 0.0 else 0.0
+	armor_label.text = "%d/%d" % [int(round(current)), int(round(max_armor))]
 
 func _on_upgrade_picked(title: String) -> void:
 	toast_label.text = "Acquired: %s" % title
