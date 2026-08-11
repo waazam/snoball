@@ -1,6 +1,6 @@
 extends Node
 ## Global run-state singleton. Holds everything that persists across a single
-## roguelike run (health, wave, score, unlocked snowball types, upgrade
+## roguelike run (health, wave, score, current snowball type, upgrade
 ## stacks) and the signal bus the rest of the game listens to.
 
 signal health_changed(current: float, max_health: float)
@@ -11,7 +11,7 @@ signal kills_changed(kills: int)
 signal player_died
 signal hat_equipped(hat_id: String)
 signal state_changed(new_state: int)
-signal weapon_changed(id: String, tier: int)
+signal snowball_type_changed(id: String)
 signal upgrades_applied
 signal upgrade_picked(title: String)
 
@@ -53,9 +53,10 @@ var upgrade_counts: Dictionary = {
 	"proj_count": 0,
 }
 
-# id -> tier (1..3). Player always starts with the classic snowball.
-var unlocked_weapons: Dictionary = {"classic": 1}
-var current_weapon: String = "classic"
+# Which of SnowballDB's 9 types the player currently throws. Always starts
+# on the Standard Snowball; changes only via present pickups (see
+# PresentPickup.gd + equip_snowball below) - permanent until the next one.
+var current_snowball_type: String = "standard"
 
 var _regen_accum: float = 0.0
 
@@ -77,8 +78,7 @@ func reset_run() -> void:
 	double_jump_unlocked = false
 	triple_jump_unlocked = false
 	dash_unlocked = false
-	unlocked_weapons = {"classic": 1}
-	current_weapon = "classic"
+	current_snowball_type = "standard"
 	max_health = 100.0
 	health = max_health
 	max_armor = 0.0
@@ -90,7 +90,7 @@ func reset_run() -> void:
 	emit_signal("score_changed", score)
 	emit_signal("kills_changed", kills)
 	emit_signal("wave_changed", wave)
-	emit_signal("weapon_changed", current_weapon, unlocked_weapons[current_weapon])
+	emit_signal("snowball_type_changed", current_snowball_type)
 
 func set_state(new_state: int) -> void:
 	if state == new_state:
@@ -194,30 +194,12 @@ func get_projectile_speed_mult() -> float:
 func get_projectile_count() -> int:
 	return 1 + upgrade_counts.get("proj_count", 0)
 
-# --- Weapons -------------------------------------------------------------
-func unlock_weapon(id: String) -> void:
-	if not unlocked_weapons.has(id):
-		unlocked_weapons[id] = 1
-
-func upgrade_weapon(id: String) -> void:
-	if unlocked_weapons.has(id):
-		unlocked_weapons[id] = min(3, unlocked_weapons[id] + 1)
-
-func set_current_weapon(id: String) -> void:
-	if unlocked_weapons.has(id) and current_weapon != id:
-		current_weapon = id
-		emit_signal("weapon_changed", current_weapon, unlocked_weapons[current_weapon])
-
-func cycle_weapon(direction: int) -> void:
-	var ids: Array = unlocked_weapons.keys()
-	ids.sort()
-	if ids.is_empty():
-		return
-	var idx: int = ids.find(current_weapon)
-	if idx == -1:
-		idx = 0
-	idx = wrapi(idx + direction, 0, ids.size())
-	set_current_weapon(ids[idx])
+# --- Snowballs -------------------------------------------------------------
+## Called by present pickups. Permanent until the next present (see
+## PresentPickup.gd) - not a timed buff.
+func equip_snowball(id: String) -> void:
+	current_snowball_type = id
+	emit_signal("snowball_type_changed", id)
 
 func apply_upgrades_changed() -> void:
 	emit_signal("upgrades_applied")

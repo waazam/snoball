@@ -13,31 +13,6 @@ const CAPS := {
 func get_offers(n: int = 3) -> Array:
 	var pool: Array = []
 
-	# Weapon unlocks / upgrades.
-	for id in SnowballDB.all_ids():
-		if not Game.unlocked_weapons.has(id):
-			pool.append({
-				"id": "unlock_%s" % id,
-				"title": "New: %s" % SnowballDB.get_display_name(id),
-				"desc": SnowballDB.get_desc(id),
-				"color": SnowballDB.get_color(id),
-				"category": "weapon",
-				"action": "unlock_weapon",
-				"params": {"weapon_id": id},
-			})
-		elif Game.unlocked_weapons[id] < 3:
-			var next_tier: int = Game.unlocked_weapons[id] + 1
-			var next_name: String = SnowballDB.get_tier_name(id, next_tier)
-			pool.append({
-				"id": "upgrade_%s" % id,
-				"title": "Upgrade: %s" % next_name,
-				"desc": "Improves your %s (tier %d/3)." % [SnowballDB.get_display_name(id), next_tier],
-				"color": SnowballDB.get_color(id),
-				"category": "weapon",
-				"action": "upgrade_weapon",
-				"params": {"weapon_id": id},
-			})
-
 	# Movement.
 	if Game.upgrade_counts.speed < CAPS.speed:
 		pool.append(_stat_offer("speed", "Swift Boots", "Increases movement speed.", Color(0.4, 0.9, 0.6)))
@@ -97,11 +72,6 @@ func _stat_offer(key: String, title: String, desc: String, color: Color) -> Dict
 ## Applies the chosen offer to Game's persistent state.
 func apply(offer: Dictionary) -> void:
 	match offer.get("action", ""):
-		"unlock_weapon":
-			Game.unlock_weapon(offer.params.weapon_id)
-			Game.set_current_weapon(offer.params.weapon_id)
-		"upgrade_weapon":
-			Game.upgrade_weapon(offer.params.weapon_id)
 		"unlock_dash":
 			Game.dash_unlocked = true
 		"unlock_double_jump":

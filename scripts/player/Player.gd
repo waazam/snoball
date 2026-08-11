@@ -245,7 +245,6 @@ func _handle_dash(delta: float) -> void:
 # land in the gaps between primary throws rather than firing alongside
 # them. Per-projectile speed/damage still scale with upgrades either way.
 func _handle_auto_throw(delta: float) -> void:
-	_handle_weapon_switch()
 	_throw_timer -= delta
 	if _throw_timer <= 0.0:
 		_throw_snowball()
@@ -255,17 +254,6 @@ func _handle_auto_throw(delta: float) -> void:
 		_throw_extra_snowballs()
 		_extra_throw_timer = EXTRA_THROW_INTERVAL
 
-func _handle_weapon_switch() -> void:
-	if Input.is_action_just_pressed("weapon_next"):
-		Game.cycle_weapon(1)
-	if Input.is_action_just_pressed("weapon_prev"):
-		Game.cycle_weapon(-1)
-	var ids: Array = Game.unlocked_weapons.keys()
-	ids.sort()
-	for i in range(1, 7):
-		if Input.is_action_just_pressed("weapon_%d" % i) and i - 1 < ids.size():
-			Game.set_current_weapon(ids[i - 1])
-
 ## The primary throw: always exactly 1 snowball, always at the single
 ## nearest enemy.
 func _throw_snowball() -> void:
@@ -274,7 +262,7 @@ func _throw_snowball() -> void:
 		return
 	_play_throw_animation()
 	var dir: Vector3 = (target.global_position + Vector3.UP - throw_point.global_position).normalized()
-	_spawn_snowball(dir, _current_throw_stats(), SnowballDB.get_color(Game.current_weapon))
+	_spawn_snowball(dir, _current_throw_stats(), SnowballDB.get_color(Game.current_snowball_type))
 
 ## The extra (proj_count) throws: fire together on their own cadence, each
 ## locked onto a different enemy than the current primary target and than
@@ -294,21 +282,18 @@ func _throw_extra_snowballs() -> void:
 		return
 	_play_throw_animation()
 	var stats: Dictionary = _current_throw_stats()
-	var color: Color = SnowballDB.get_color(Game.current_weapon)
+	var color: Color = SnowballDB.get_color(Game.current_snowball_type)
 	for target in targets:
 		var dir: Vector3 = (target.global_position + Vector3.UP - throw_point.global_position).normalized()
 		_spawn_snowball(dir, stats, color)
 
 func _current_throw_stats() -> Dictionary:
-	var id: String = Game.current_weapon
-	var tier: int = Game.unlocked_weapons.get(id, 1)
-	var stats: Dictionary = SnowballDB.get_stats(id, tier).duplicate()
+	var stats: Dictionary = SnowballDB.get_stats(Game.current_snowball_type).duplicate()
 	var power: float = Game.get_throw_power_mult()
 	stats["damage"] = stats.get("damage", 10.0) * power
 	stats["speed"] = stats.get("speed", 30.0) * power * Game.get_projectile_speed_mult()
 	# Every throw gets at least a baseline auto-lock pull, on top of
-	# whatever homing the weapon type already has (Frost Seeker etc. keep
-	# their stronger values via maxf).
+	# whatever homing the current snowball type already has via maxf.
 	stats["homing"] = maxf(stats.get("homing", 0.0), AUTO_LOCK_HOMING)
 	return stats
 
@@ -317,7 +302,7 @@ func _spawn_snowball(dir: Vector3, stats: Dictionary, color: Color) -> void:
 	var sb: Area3D = scene.instantiate()
 	get_tree().current_scene.add_child(sb)
 	sb.global_position = throw_point.global_position
-	sb.setup(dir, stats, true, color)
+	sb.setup(dir, stats, true, color, false, Game.current_snowball_type)
 
 ## Up to n nearest enemies (within TARGET_SEARCH_RADIUS), skipping anything
 ## in `exclude` - used to give each extra projectile its own distinct

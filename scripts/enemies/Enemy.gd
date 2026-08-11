@@ -32,6 +32,17 @@ var slow_factor: float = 1.0
 var external_velocity: Vector3 = Vector3.ZERO
 var _dead: bool = false
 
+# Bleed (sticks/nails snowballs): a damage-over-time drain plus a trailing
+# blood decal. Footprints (piss-ball snowball): no damage, just a trailing
+# colored decal. Both share the same GroundTrail decal spawner, just with
+# different colors/lifetimes/tick rates.
+var _bleed_dps: float = 0.0
+var _bleed_timer: float = 0.0
+var _bleed_drop_accum: float = 0.0
+var _footprint_color: Color = Color(0.85, 0.72, 0.1)
+var _footprint_timer: float = 0.0
+var _footprint_drop_accum: float = 0.0
+
 var _jump_timer: float = 0.0
 var _dash_timer: float = 0.0
 var _is_dashing: bool = false
@@ -101,6 +112,9 @@ func _physics_process(delta: float) -> void:
 		slow_timer -= delta
 		if slow_timer <= 0.0:
 			slow_factor = 1.0
+	_update_status_effects(delta)
+	if _dead:
+		return
 	var player := _get_player()
 	if player == null:
 		velocity.y -= GRAVITY * delta
@@ -223,6 +237,53 @@ func take_damage(amount: float, freeze_duration: float = 0.0, freeze_factor: flo
 
 func apply_knockback(v: Vector3) -> void:
 	external_velocity += v
+
+## Sticks/nails snowballs: a health drain over `duration` seconds, plus a
+## trailing blood decal while it's active. Re-applying refreshes/extends
+## rather than stacking (matches how freeze/slow already behaves).
+func apply_bleed(dps: float, duration: float) -> void:
+	_bleed_dps = maxf(_bleed_dps, dps)
+	_bleed_timer = maxf(_bleed_timer, duration)
+
+## Piss-ball snowball: no damage, just a trailing colored decal for
+## `duration` seconds.
+func apply_footprint_trail(color: Color, duration: float) -> void:
+	_footprint_color = color
+	_footprint_timer = maxf(_footprint_timer, duration)
+
+## Death ball: skips normal damage math entirely and kills outright. Still
+## shows a damage number (its remaining health, i.e. "how much it took to
+## finish this off") and the usual hit-reaction before dying, so it reads
+## as a real hit rather than the enemy just vanishing.
+func instant_kill() -> void:
+	if _dead:
+		return
+	_spawn_damage_number(health)
+	_play_hit_reaction()
+	health = 0.0
+	_update_health_bar()
+	_die()
+
+func _update_status_effects(delta: float) -> void:
+	if _bleed_timer > 0.0:
+		_bleed_timer -= delta
+		health = maxf(0.0, health - _bleed_dps * delta)
+		_update_health_bar()
+		_bleed_drop_accum += delta
+		if _bleed_drop_accum >= 0.15:
+			_bleed_drop_accum = 0.0
+			GroundTrail.spawn(global_position, Color(0.55, 0.05, 0.05), 5.0)
+		if health <= 0.0:
+			_die()
+			return
+	else:
+		_bleed_dps = 0.0
+	if _footprint_timer > 0.0:
+		_footprint_timer -= delta
+		_footprint_drop_accum += delta
+		if _footprint_drop_accum >= 0.25:
+			_footprint_drop_accum = 0.0
+			GroundTrail.spawn(global_position, _footprint_color, 10.0)
 
 ## Floating number above the head, at the same anchor the health bar
 ## already uses (per-enemy-type tuned height, so it lines up whether this

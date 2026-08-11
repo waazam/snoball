@@ -23,6 +23,8 @@ EnemyDB="*res://scripts/autoload/EnemyDB.gd"
 UpgradeDB="*res://scripts/autoload/UpgradeDB.gd"
 HatDB="*res://scripts/autoload/HatDB.gd"
 TreatDB="*res://scripts/autoload/TreatDB.gd"
+SoundFX="*res://scripts/autoload/SoundFX.gd"
+GroundTrail="*res://scripts/autoload/GroundTrail.gd"
 
 [display]
 

@@ -1,8 +1,111 @@
 extends Node
-## Data-only singleton describing every snowball type and its 3 upgrade tiers.
-## Snowball.gd reads get_stats(id, tier) to configure a thrown projectile.
+## Data-only singleton describing the 9 snowball types. There's no
+## unlocking/upgrading here (unlike the old tiered-weapon system this
+## replaced) - which one the player currently throws is purely decided by
+## the last "present" pickup they collected (see PresentPickup.gd +
+## Game.equip_snowball). Snowball.gd reads get_stats(id) to configure a
+## thrown projectile's physics and SnowballVisuals.gd/get_shape(id) to
+## build its look; "effect" drives what happens to an enemy it hits (see
+## Snowball._hit_enemy). "rarity" is the present pickup's drop weight -
+## higher rolls more often (see get_random_id).
 
-# Base (tier-independent) fields, overridden per tier below.
+const TYPES := {
+	"standard": {
+		"display_name": "Standard Snowball",
+		"desc": "A reliable, well-packed snowball. Nothing fancy.",
+		"damage": 20.0,
+		"color": Color(0.92, 0.94, 0.97),
+		"shape": "standard",
+		"effect": "none",
+		"rarity": 20,
+	},
+	"perfect_white": {
+		"display_name": "Perfect Snowball",
+		"desc": "Flawlessly round and pure white. Thrown in total silence.",
+		"damage": 20.0,
+		"color": Color(1.0, 1.0, 1.0),
+		"shape": "perfect_white",
+		"effect": "silent",
+		"rarity": 12,
+	},
+	"piss_ball": {
+		"display_name": "Yellow Snowball",
+		"desc": "Best not to ask. Leaves yellow footprints behind whatever it hits.",
+		"damage": 20.0,
+		"color": Color(0.82, 0.74, 0.12),
+		"shape": "piss_ball",
+		"effect": "footprints",
+		"effect_color": Color(0.85, 0.72, 0.1),
+		"effect_duration": 10.0,
+		"rarity": 12,
+	},
+	"gravel": {
+		"display_name": "Gravel Snowball",
+		"desc": "Studded with rock. Bursts in a shotgun blast on impact.",
+		"damage": 25.0,
+		"color": Color(0.55, 0.52, 0.48),
+		"shape": "gravel",
+		"effect": "shotgun",
+		"effect_radius": 3.0,
+		"rarity": 10,
+	},
+	"sap": {
+		"display_name": "Tree Sap Snowball",
+		"desc": "Sticky sap and pine needles. Slows whatever it hits.",
+		"damage": 15.0,
+		"color": Color(0.62, 0.78, 0.32),
+		"shape": "sap",
+		"effect": "slow",
+		"effect_duration": 2.5,
+		"effect_factor": 0.45,
+		"rarity": 12,
+	},
+	"sticks": {
+		"display_name": "Stick Snowball",
+		"desc": "Bristling with sharp sticks. Causes bleeding.",
+		"damage": 25.0,
+		"color": Color(0.85, 0.9, 0.95),
+		"shape": "sticks",
+		"effect": "bleed",
+		"effect_dps": 4.0,
+		"effect_duration": 5.0,
+		"rarity": 10,
+	},
+	"ice": {
+		"display_name": "Ice Snowball",
+		"desc": "Dripping with meltwater. Explodes into a freezing blast.",
+		"damage": 50.0,
+		"color": Color(0.55, 0.85, 0.98),
+		"shape": "ice",
+		"effect": "ice_explosion",
+		"effect_radius": 3.5,
+		"effect_duration": 2.0,
+		"effect_factor": 0.2,
+		"rarity": 6,
+	},
+	"nails": {
+		"display_name": "Nail Snowball",
+		"desc": "Studded with rusty nails. Causes bleeding.",
+		"damage": 30.0,
+		"color": Color(0.9, 0.92, 0.95),
+		"shape": "nails",
+		"effect": "bleed",
+		"effect_dps": 5.0,
+		"effect_duration": 5.0,
+		"rarity": 8,
+	},
+	"death_ball": {
+		"display_name": "Death Snowball",
+		"desc": "A pulsating void of purple and black. Obliterates on contact.",
+		"damage": 9999.0,
+		"color": Color(0.28, 0.05, 0.38),
+		"shape": "death_ball",
+		"effect": "instakill",
+		"rarity": 1,
+	},
+}
+
+# Tier-independent physics defaults, overridden per type's effect in get_stats().
 const BASE := {
 	"speed": 30.0,
 	"gravity_scale": 1.0,
@@ -16,91 +119,58 @@ const BASE := {
 	"freeze_factor": 1.0,
 }
 
-const TYPES := {
-	"classic": {
-		"name": "Classic Snowball",
-		"color": Color(0.95, 0.97, 1.0),
-		"desc": "A reliable, well-rounded pack of snow.",
-		"tiers": [
-			{"tier_name": "Classic Snowball", "damage": 12.0, "cooldown": 0.45, "speed": 30.0},
-			{"tier_name": "Packed Snowball", "damage": 16.0, "cooldown": 0.40, "speed": 32.0},
-			{"tier_name": "Ice Boulder Snowball", "damage": 24.0, "cooldown": 0.38, "speed": 34.0, "splash_radius": 2.5},
-		],
-	},
-	"shard": {
-		"name": "Ice Shard",
-		"color": Color(0.55, 0.85, 1.0),
-		"desc": "A sharpened sliver of ice that pierces through foes.",
-		"tiers": [
-			{"tier_name": "Ice Shard", "damage": 7.0, "cooldown": 0.35, "speed": 42.0, "pierce": 2, "radius": 0.15},
-			{"tier_name": "Frost Shard", "damage": 9.0, "cooldown": 0.32, "speed": 46.0, "pierce": 4, "radius": 0.15},
-			{"tier_name": "Glacier Spike", "damage": 12.0, "cooldown": 0.30, "speed": 50.0, "pierce": 6, "radius": 0.17, "freeze_duration": 1.5, "freeze_factor": 0.5},
-		],
-	},
-	"cluster": {
-		"name": "Cluster Bomb",
-		"color": Color(1.0, 0.85, 0.4),
-		"desc": "Bursts into smaller snowballs on impact.",
-		"tiers": [
-			{"tier_name": "Cluster Bomb", "damage": 6.0, "cooldown": 0.7, "speed": 24.0, "radius": 0.3, "cluster_count": 5},
-			{"tier_name": "Shrapnel Bomb", "damage": 7.0, "cooldown": 0.65, "speed": 26.0, "radius": 0.3, "cluster_count": 7},
-			{"tier_name": "Avalanche Bomb", "damage": 8.0, "cooldown": 0.6, "speed": 28.0, "radius": 0.32, "cluster_count": 9, "splash_radius": 1.2},
-		],
-	},
-	"homing": {
-		"name": "Frost Seeker",
-		"color": Color(0.7, 0.6, 1.0),
-		"desc": "Curves through the air to chase the nearest enemy.",
-		"tiers": [
-			{"tier_name": "Frost Seeker", "damage": 9.0, "cooldown": 0.55, "speed": 22.0, "homing": 3.0, "gravity_scale": 0.15},
-			{"tier_name": "Blizzard Seeker", "damage": 12.0, "cooldown": 0.5, "speed": 24.0, "homing": 4.5, "gravity_scale": 0.1},
-			{"tier_name": "Whiteout Seeker", "damage": 16.0, "cooldown": 0.45, "speed": 26.0, "homing": 6.0, "gravity_scale": 0.05, "pierce": 2},
-		],
-	},
-	"blizzard": {
-		"name": "Blizzard Flurry",
-		"color": Color(0.8, 0.95, 1.0),
-		"desc": "Small, fast, and thrown at a rapid rate.",
-		"tiers": [
-			{"tier_name": "Blizzard Flurry", "damage": 4.0, "cooldown": 0.14, "speed": 36.0, "radius": 0.14},
-			{"tier_name": "Whirlwind Flurry", "damage": 5.0, "cooldown": 0.11, "speed": 38.0, "radius": 0.14},
-			{"tier_name": "Hailstorm Flurry", "damage": 6.0, "cooldown": 0.08, "speed": 40.0, "radius": 0.15, "freeze_duration": 0.6, "freeze_factor": 0.7},
-		],
-	},
-	"boulder": {
-		"name": "Great Boulder",
-		"color": Color(0.55, 0.6, 0.7),
-		"desc": "A massive, slow-flying block of packed ice.",
-		"tiers": [
-			{"tier_name": "Great Boulder", "damage": 40.0, "cooldown": 1.4, "speed": 18.0, "radius": 0.8, "splash_radius": 3.5, "knockback": 8.0},
-			{"tier_name": "Glacial Boulder", "damage": 55.0, "cooldown": 1.3, "speed": 19.0, "radius": 0.85, "splash_radius": 4.5, "knockback": 10.0},
-			{"tier_name": "Titan Boulder", "damage": 75.0, "cooldown": 1.2, "speed": 20.0, "radius": 0.9, "splash_radius": 6.0, "knockback": 14.0, "freeze_duration": 1.0, "freeze_factor": 0.3},
-		],
-	},
-}
-
 func all_ids() -> Array:
 	return TYPES.keys()
 
-func get_display_name(id: String) -> String:
-	return TYPES.get(id, {}).get("name", id)
+func get_data(id: String) -> Dictionary:
+	return TYPES.get(id, TYPES["standard"])
 
-func get_color(id: String) -> Color:
-	return TYPES.get(id, {}).get("color", Color.WHITE)
+func get_display_name(id: String) -> String:
+	return get_data(id).get("display_name", id)
 
 func get_desc(id: String) -> String:
-	return TYPES.get(id, {}).get("desc", "")
+	return get_data(id).get("desc", "")
 
-func get_tier_name(id: String, tier: int) -> String:
-	var stats := get_stats(id, tier)
-	return stats.get("tier_name", get_display_name(id))
+func get_color(id: String) -> Color:
+	return get_data(id).get("color", Color.WHITE)
 
-## Returns a merged dictionary of BASE defaults + this type's tier overrides.
-func get_stats(id: String, tier: int) -> Dictionary:
-	var def: Dictionary = TYPES.get(id, TYPES["classic"])
-	var tiers: Array = def["tiers"]
-	var idx: int = clampi(tier - 1, 0, tiers.size() - 1)
+func get_shape(id: String) -> String:
+	return get_data(id).get("shape", "standard")
+
+func get_effect(id: String) -> String:
+	return get_data(id).get("effect", "none")
+
+## Merged BASE physics defaults + this type's damage and (where the effect
+## maps onto an existing projectile mechanic - splash/freeze) its params.
+## Effects with no physics equivalent (footprints, bleed, instakill,
+## silent) are read straight off get_data() by Snowball.gd instead.
+func get_stats(id: String) -> Dictionary:
 	var stats: Dictionary = BASE.duplicate()
-	for k in tiers[idx]:
-		stats[k] = tiers[idx][k]
+	var data: Dictionary = get_data(id)
+	stats["damage"] = data.get("damage", 10.0)
+	match data.get("effect", "none"):
+		"shotgun":
+			stats["splash_radius"] = data.get("effect_radius", 3.0)
+		"slow":
+			stats["freeze_duration"] = data.get("effect_duration", 2.5)
+			stats["freeze_factor"] = data.get("effect_factor", 0.45)
+		"ice_explosion":
+			stats["splash_radius"] = data.get("effect_radius", 3.5)
+			stats["freeze_duration"] = data.get("effect_duration", 2.0)
+			stats["freeze_factor"] = data.get("effect_factor", 0.2)
 	return stats
+
+## Weighted random pick for present pickups - "rarity" is the weight, so
+## the death ball (rarity 1 against everything else's 6-20) is by far the
+## least likely to come up.
+func get_random_id() -> String:
+	var total: float = 0.0
+	for id in TYPES:
+		total += float(TYPES[id].get("rarity", 1))
+	var roll: float = randf() * total
+	var accum: float = 0.0
+	for id in TYPES:
+		accum += float(TYPES[id].get("rarity", 1))
+		if roll < accum:
+			return id
+	return "standard"

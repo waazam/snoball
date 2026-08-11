@@ -5,7 +5,6 @@ extends CanvasLayer
 @onready var shield_icon: Control = $Root/ShieldIcon
 @onready var armor_label: Label = $Root/ShieldIcon/ArmorLabel
 @onready var ball_icon: Control = $Root/BallIcon
-@onready var ball_tier_label: Label = $Root/BallIcon/TierLabel
 @onready var weapon_name_label: Label = $Root/WeaponNameLabel
 @onready var wave_label: Label = $Root/WaveLabel
 @onready var kills_label: Label = $Root/KillsLabel
@@ -23,7 +22,7 @@ func _ready() -> void:
 	Game.armor_changed.connect(_on_armor_changed)
 	Game.wave_changed.connect(_on_wave_changed)
 	Game.kills_changed.connect(_on_kills_changed)
-	Game.weapon_changed.connect(_on_weapon_changed)
+	Game.snowball_type_changed.connect(_on_snowball_type_changed)
 	Game.upgrade_picked.connect(_on_upgrade_picked)
 	# Both upgrade cards (Game.upgrades_applied) and hat pickups (which don't
 	# always also fire upgrades_applied - see HatDB.apply) need to refresh
@@ -34,7 +33,7 @@ func _ready() -> void:
 	_on_armor_changed(Game.armor, Game.max_armor)
 	_on_wave_changed(Game.wave)
 	_on_kills_changed(Game.kills)
-	_on_weapon_changed(Game.current_weapon, Game.unlocked_weapons.get(Game.current_weapon, 1))
+	_on_snowball_type_changed(Game.current_snowball_type)
 	_refresh_stats()
 	pause_overlay.visible = false
 	toast_label.visible = false
@@ -66,10 +65,9 @@ func _on_wave_changed(wave: int) -> void:
 func _on_kills_changed(kills: int) -> void:
 	kills_label.text = "Kills: %d" % kills
 
-func _on_weapon_changed(id: String, tier: int) -> void:
+func _on_snowball_type_changed(id: String) -> void:
 	ball_icon.fill_color = SnowballDB.get_color(id)
-	ball_tier_label.text = "T%d" % tier
-	weapon_name_label.text = SnowballDB.get_tier_name(id, tier)
+	weapon_name_label.text = SnowballDB.get_display_name(id)
 
 func _on_upgrade_picked(title: String) -> void:
 	toast_label.text = "Acquired: %s" % title

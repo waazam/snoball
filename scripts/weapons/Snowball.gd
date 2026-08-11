@@ -1,10 +1,16 @@
 extends Area3D
 ## A thrown snowball projectile. Configured via setup() right after
 ## instancing; supports pierce, splash, cluster-splitting, homing and
-## freeze/knockback effects depending on the stats dictionary it was given.
+## freeze/knockback effects depending on the stats dictionary it was given,
+## plus a handful of on-hit effects (footprints, bleed, instant kill) keyed
+## off its snowball type_id - see SnowballDB.gd for the 9 player-thrown
+## types and SnowballVisuals.gd for their looks. Enemy-thrown snowballs
+## (and cluster shards) always use type_id "standard" - none of the special
+## effects apply to them.
 
 const GRAVITY := 9.8
 const SNOWBALL_SCENE_PATH := "res://scenes/weapons/Snowball.tscn"
+const PULSE_SPEED := 6.0  # death ball's flight-time scale "breathing", rad/s
 
 var velocity: Vector3 = Vector3.ZERO
 var damage: float = 10.0
@@ -20,16 +26,20 @@ var lifetime: float = 4.0
 var is_player_owned: bool = true
 var is_cluster_shard: bool = false
 
+var type_id: String = "standard"
+var effect_kind: String = "none"
+var effect_data: Dictionary = {}
+
+var _color: Color = Color.WHITE
+var _visual_root: Node3D
+var _whoosh_player: AudioStreamPlayer3D
+var _pulse_time: float = 0.0
+
 var _hit_bodies: Array = []
 var _age: float = 0.0
 var _dead: bool = false
 
-@onready var _mesh: MeshInstance3D = $MeshInstance3D
-@onready var _mat: StandardMaterial3D = StandardMaterial3D.new()
-
 func _ready() -> void:
-	_mat.albedo_color = Color.WHITE
-	_mesh.material_override = _mat
 	body_entered.connect(_on_body_entered)
 	if is_player_owned:
 		collision_layer = 8
@@ -38,9 +48,10 @@ func _ready() -> void:
 		collision_layer = 16
 		collision_mask = 1 | 2
 
-func setup(p_direction: Vector3, p_stats: Dictionary, p_is_player_owned: bool, p_color: Color = Color.WHITE, p_is_cluster_shard: bool = false) -> void:
+func setup(p_direction: Vector3, p_stats: Dictionary, p_is_player_owned: bool, p_color: Color = Color.WHITE, p_is_cluster_shard: bool = false, p_type_id: String = "standard") -> void:
 	is_player_owned = p_is_player_owned
 	is_cluster_shard = p_is_cluster_shard
+	type_id = p_type_id
 	damage = p_stats.get("damage", 10.0)
 	gravity_scale = p_stats.get("gravity_scale", 1.0)
 	pierce = int(p_stats.get("pierce", 1))
@@ -65,9 +76,33 @@ func setup(p_direction: Vector3, p_stats: Dictionary, p_is_player_owned: bool, p
 		else:
 			collision_layer = 16
 			collision_mask = 1 | 2
-	if _mesh:
-		_mat.albedo_color = p_color
-		_mesh.material_override = _mat
+	_color = p_color
+	if is_player_owned and not is_cluster_shard:
+		var data: Dictionary = SnowballDB.get_data(type_id)
+		effect_kind = data.get("effect", "none")
+		effect_data = data
+	_build_visual()
+	_start_flight_sound()
+
+## Replaces whatever's there with a fresh procedural mesh matching this
+## snowball's shape (SnowballDB.get_shape) - enemy throws and cluster
+## shards always render as the plain "standard" look.
+func _build_visual() -> void:
+	if _visual_root and is_instance_valid(_visual_root):
+		_visual_root.queue_free()
+	var shape: String = SnowballDB.get_shape(type_id) if (is_player_owned and not is_cluster_shard) else "standard"
+	_visual_root = SnowballVisuals.build(shape, _color)
+	add_child(_visual_root)
+
+func _start_flight_sound() -> void:
+	if effect_kind == "silent":
+		return
+	_whoosh_player = AudioStreamPlayer3D.new()
+	_whoosh_player.stream = SoundFX.get_whoosh()
+	_whoosh_player.volume_db = -8.0
+	_whoosh_player.max_distance = 30.0
+	add_child(_whoosh_player)
+	_whoosh_player.play()
 
 func _physics_process(delta: float) -> void:
 	if _dead or Game.state != Game.State.PLAYING:
@@ -84,6 +119,10 @@ func _physics_process(delta: float) -> void:
 		var look_dir: Vector3 = velocity.normalized()
 		if absf(look_dir.dot(Vector3.UP)) < 0.999:
 			look_at(global_position + look_dir, Vector3.UP)
+	if type_id == "death_ball" and _visual_root:
+		_pulse_time += delta
+		var p: float = 1.0 + 0.18 * sin(_pulse_time * PULSE_SPEED)
+		_visual_root.scale = Vector3.ONE * p
 
 func _apply_homing(delta: float) -> void:
 	var target: Node3D = _find_nearest_enemy(25.0)
@@ -136,8 +175,18 @@ func _on_body_entered(body: Node) -> void:
 			_die()
 
 func _hit_enemy(body: Node) -> void:
-	if body.has_method("take_damage"):
-		body.take_damage(damage, freeze_duration, freeze_factor)
+	if effect_kind == "instakill" and body.has_method("instant_kill"):
+		body.instant_kill()
+	else:
+		if body.has_method("take_damage"):
+			body.take_damage(damage, freeze_duration, freeze_factor)
+		match effect_kind:
+			"footprints":
+				if body.has_method("apply_footprint_trail"):
+					body.apply_footprint_trail(effect_data.get("effect_color", Color(0.85, 0.72, 0.1)), effect_data.get("effect_duration", 10.0))
+			"bleed":
+				if body.has_method("apply_bleed"):
+					body.apply_bleed(effect_data.get("effect_dps", 4.0), effect_data.get("effect_duration", 5.0))
 	if body.has_method("apply_knockback") and knockback > 0.0:
 		var push_dir: Vector3 = (body.global_position - global_position)
 		push_dir.y = 0.0
@@ -169,10 +218,25 @@ func _spawn_cluster() -> void:
 		var out_dir: Vector3 = Vector3(cos(angle), randf_range(0.2, 0.6), sin(angle))
 		get_tree().current_scene.add_child(shard)
 		shard.global_position = global_position
-		shard.setup(out_dir, shard_stats, is_player_owned, _mat.albedo_color, true)
+		shard.setup(out_dir, shard_stats, is_player_owned, _color, true)
 
 func _die() -> void:
 	if _dead:
 		return
 	_dead = true
+	_play_impact_sound()
 	queue_free()
+
+## Independent of this node's own lifecycle (which ends this frame) so the
+## splat isn't cut off mid-playback by queue_free().
+func _play_impact_sound() -> void:
+	if effect_kind == "silent":
+		return
+	var stream: AudioStreamWAV = SoundFX.get_implosion() if type_id == "death_ball" else SoundFX.get_splat()
+	var player := AudioStreamPlayer3D.new()
+	player.stream = stream
+	player.max_distance = 30.0
+	get_tree().current_scene.add_child(player)
+	player.global_position = global_position
+	player.finished.connect(player.queue_free)
+	player.play()
