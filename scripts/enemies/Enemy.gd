@@ -235,8 +235,17 @@ func take_damage(amount: float, freeze_duration: float = 0.0, freeze_factor: flo
 	if health <= 0.0:
 		_die()
 
+## Capped so repeated hits (e.g. a primary throw and its extras all landing
+## on the same enemy within a fraction of a second) can't stack into an
+## unbounded slide backward - without this a focus-fired enemy (elves in
+## particular, being squishy and often the nearest/priority target) could
+## get knocked further back each hit faster than the 20*delta decay below
+## can dissipate it, reading as if they're fleeing rather than just reeling
+## from repeated impacts.
+const MAX_KNOCKBACK_VELOCITY := 9.0
+
 func apply_knockback(v: Vector3) -> void:
-	external_velocity += v
+	external_velocity = (external_velocity + v).limit_length(MAX_KNOCKBACK_VELOCITY)
 
 ## Sticks/nails snowballs: a health drain over `duration` seconds, plus a
 ## trailing blood decal while it's active. Re-applying refreshes/extends

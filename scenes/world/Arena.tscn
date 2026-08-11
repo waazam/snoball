@@ -1,10 +1,12 @@
-[gd_scene load_steps=38 format=3]
+[gd_scene load_steps=49 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/WaveManager.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/world/LowPolySky.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/world/LowPolyWall.gd" id="3"]
-[ext_resource type="Script" path="res://scripts/world/LowPolyTileField.gd" id="4"]
 [ext_resource type="Script" path="res://scripts/enemies/ChristmasLights.gd" id="5"]
+[ext_resource type="Script" path="res://scripts/world/TreeBranches.gd" id="6"]
+[ext_resource type="Script" path="res://scripts/world/SnowCap.gd" id="7"]
+[ext_resource type="Script" path="res://scripts/world/BareTree.gd" id="8"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 sky_top_color = Color(0.18, 0.26, 0.58, 1)
@@ -238,6 +240,34 @@ albedo_color = Color(1, 1, 1, 1)
 shading_mode = 0
 billboard_mode = 3
 
+[sub_resource type="StandardMaterial3D" id="StdMat_platform"]
+albedo_color = Color(0.55, 0.52, 0.48, 1)
+roughness = 0.85
+
+[sub_resource type="BoxMesh" id="BoxMesh_platformA"]
+size = Vector3(8, 1.8, 8)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_platformA"]
+size = Vector3(8, 1.8, 8)
+
+[sub_resource type="BoxMesh" id="BoxMesh_rampA"]
+size = Vector3(4, 0.4, 5.26)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_rampA"]
+size = Vector3(4, 0.4, 5.26)
+
+[sub_resource type="BoxMesh" id="BoxMesh_platformB"]
+size = Vector3(7, 2.4, 7)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_platformB"]
+size = Vector3(7, 2.4, 7)
+
+[sub_resource type="BoxMesh" id="BoxMesh_rampB"]
+size = Vector3(4, 0.4, 7.02)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_rampB"]
+size = Vector3(4, 0.4, 7.02)
+
 [node name="Arena" type="Node3D"]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
@@ -261,9 +291,6 @@ surface_material_override/0 = SubResource("StdMat_snowGround")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
 shape = SubResource("BoxShape3D_ground")
-
-[node name="LowPolyTiles" type="Node3D" parent="."]
-script = ExtResource("4")
 
 [node name="Walls" type="Node3D" parent="."]
 
@@ -339,6 +366,12 @@ surface_material_override/0 = SubResource("StdMat_wood")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate1"]
 shape = SubResource("BoxShape3D_crate")
 
+[node name="SnowCap" type="Node3D" parent="Obstacles/Crate1"]
+position = Vector3(0, 0.8, 0)
+script = ExtResource("7")
+cap_radius = 0.55
+blob_count = 4
+
 [node name="Crate2" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(-10, 0.8, 10)
 
@@ -348,6 +381,12 @@ surface_material_override/0 = SubResource("StdMat_wood")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate2"]
 shape = SubResource("BoxShape3D_crate")
+
+[node name="SnowCap" type="Node3D" parent="Obstacles/Crate2"]
+position = Vector3(0, 0.8, 0)
+script = ExtResource("7")
+cap_radius = 0.55
+blob_count = 4
 
 [node name="Crate3" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(14, 0.8, -4)
@@ -359,6 +398,12 @@ surface_material_override/0 = SubResource("StdMat_wood")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate3"]
 shape = SubResource("BoxShape3D_crate")
 
+[node name="SnowCap" type="Node3D" parent="Obstacles/Crate3"]
+position = Vector3(0, 0.8, 0)
+script = ExtResource("7")
+cap_radius = 0.55
+blob_count = 4
+
 [node name="Crate4" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(-14, 0.8, -4)
 
@@ -368,6 +413,12 @@ surface_material_override/0 = SubResource("StdMat_wood")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate4"]
 shape = SubResource("BoxShape3D_crate")
+
+[node name="SnowCap" type="Node3D" parent="Obstacles/Crate4"]
+position = Vector3(0, 0.8, 0)
+script = ExtResource("7")
+cap_radius = 0.55
+blob_count = 4
 
 [node name="Crate5" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(0, 0.8, -16)
@@ -379,6 +430,12 @@ surface_material_override/0 = SubResource("StdMat_wood")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate5"]
 shape = SubResource("BoxShape3D_crate")
 
+[node name="SnowCap" type="Node3D" parent="Obstacles/Crate5"]
+position = Vector3(0, 0.8, 0)
+script = ExtResource("7")
+cap_radius = 0.55
+blob_count = 4
+
 [node name="Crate6" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(6, 0.8, 18)
 
@@ -388,6 +445,12 @@ surface_material_override/0 = SubResource("StdMat_wood")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate6"]
 shape = SubResource("BoxShape3D_crate")
+
+[node name="SnowCap" type="Node3D" parent="Obstacles/Crate6"]
+position = Vector3(0, 0.8, 0)
+script = ExtResource("7")
+cap_radius = 0.55
+blob_count = 4
 
 [node name="Crate7" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(-6, 0.8, -20)
@@ -399,6 +462,12 @@ surface_material_override/0 = SubResource("StdMat_wood")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate7"]
 shape = SubResource("BoxShape3D_crate")
 
+[node name="SnowCap" type="Node3D" parent="Obstacles/Crate7"]
+position = Vector3(0, 0.8, 0)
+script = ExtResource("7")
+cap_radius = 0.55
+blob_count = 4
+
 [node name="Crate8" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(18, 0.8, 4)
 
@@ -409,6 +478,12 @@ surface_material_override/0 = SubResource("StdMat_wood")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate8"]
 shape = SubResource("BoxShape3D_crate")
 
+[node name="SnowCap" type="Node3D" parent="Obstacles/Crate8"]
+position = Vector3(0, 0.8, 0)
+script = ExtResource("7")
+cap_radius = 0.55
+blob_count = 4
+
 [node name="Rock1" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(4, 1.0, 2)
 
@@ -418,6 +493,12 @@ surface_material_override/0 = SubResource("StdMat_rock")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Rock1"]
 shape = SubResource("SphereShape3D_unit")
+
+[node name="SnowCap" type="Node3D" parent="Obstacles/Rock1"]
+position = Vector3(0, 1.0, 0)
+script = ExtResource("7")
+cap_radius = 0.4
+blob_count = 4
 
 [node name="Rock2" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(-8, 0.8, -10)
@@ -430,6 +511,12 @@ surface_material_override/0 = SubResource("StdMat_rock")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Rock2"]
 shape = SubResource("SphereShape3D_unit")
 
+[node name="SnowCap" type="Node3D" parent="Obstacles/Rock2"]
+position = Vector3(0, 1.0, 0)
+script = ExtResource("7")
+cap_radius = 0.4
+blob_count = 4
+
 [node name="Rock3" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(16, 1.1, -14)
 scale = Vector3(1.1, 1.1, 1.1)
@@ -440,6 +527,12 @@ surface_material_override/0 = SubResource("StdMat_rock")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Rock3"]
 shape = SubResource("SphereShape3D_unit")
+
+[node name="SnowCap" type="Node3D" parent="Obstacles/Rock3"]
+position = Vector3(0, 1.0, 0)
+script = ExtResource("7")
+cap_radius = 0.4
+blob_count = 4
 
 [node name="Rock4" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(-16, 0.9, 8)
@@ -452,6 +545,12 @@ surface_material_override/0 = SubResource("StdMat_rock")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Rock4"]
 shape = SubResource("SphereShape3D_unit")
 
+[node name="SnowCap" type="Node3D" parent="Obstacles/Rock4"]
+position = Vector3(0, 1.0, 0)
+script = ExtResource("7")
+cap_radius = 0.4
+blob_count = 4
+
 [node name="Rock5" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(2, 1.2, -24)
 scale = Vector3(1.2, 1.2, 1.2)
@@ -463,6 +562,12 @@ surface_material_override/0 = SubResource("StdMat_rock")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Rock5"]
 shape = SubResource("SphereShape3D_unit")
 
+[node name="SnowCap" type="Node3D" parent="Obstacles/Rock5"]
+position = Vector3(0, 1.0, 0)
+script = ExtResource("7")
+cap_radius = 0.4
+blob_count = 4
+
 [node name="Rock6" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(-2, 0.85, 22)
 scale = Vector3(0.85, 0.85, 0.85)
@@ -473,6 +578,12 @@ surface_material_override/0 = SubResource("StdMat_rock")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Rock6"]
 shape = SubResource("SphereShape3D_unit")
+
+[node name="SnowCap" type="Node3D" parent="Obstacles/Rock6"]
+position = Vector3(0, 1.0, 0)
+script = ExtResource("7")
+cap_radius = 0.4
+blob_count = 4
 
 [node name="SnowPile1" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(8, 0.5, -8)
@@ -540,10 +651,57 @@ surface_material_override/0 = SubResource("StdMat_snowpile")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/SnowPile6"]
 shape = SubResource("BoxShape3D_snowpile")
 
+[node name="Terrain" type="Node3D" parent="."]
+
+[node name="PlatformA" type="StaticBody3D" parent="Terrain"]
+position = Vector3(-24, 0.9, 6)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Terrain/PlatformA"]
+mesh = SubResource("BoxMesh_platformA")
+surface_material_override/0 = SubResource("StdMat_platform")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Terrain/PlatformA"]
+shape = SubResource("BoxShape3D_platformA")
+
+[node name="RampA" type="StaticBody3D" parent="Terrain"]
+position = Vector3(-24, 0.9, 12.5)
+rotation_degrees = Vector3(20, 0, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Terrain/RampA"]
+mesh = SubResource("BoxMesh_rampA")
+surface_material_override/0 = SubResource("StdMat_platform")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Terrain/RampA"]
+shape = SubResource("BoxShape3D_rampA")
+
+[node name="PlatformB" type="StaticBody3D" parent="Terrain"]
+position = Vector3(22, 1.2, -6)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Terrain/PlatformB"]
+mesh = SubResource("BoxMesh_platformB")
+surface_material_override/0 = SubResource("StdMat_platform")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Terrain/PlatformB"]
+shape = SubResource("BoxShape3D_platformB")
+
+[node name="RampB" type="StaticBody3D" parent="Terrain"]
+position = Vector3(22, 1.2, 0.8)
+rotation_degrees = Vector3(20, 0, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Terrain/RampB"]
+mesh = SubResource("BoxMesh_rampB")
+surface_material_override/0 = SubResource("StdMat_platform")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Terrain/RampB"]
+shape = SubResource("BoxShape3D_rampB")
+
 [node name="Trees" type="Node3D" parent="."]
 
 [node name="Tree1" type="Node3D" parent="Trees"]
 position = Vector3(35, 0, 0)
+
+[node name="Branches" type="Node3D" parent="Trees/Tree1"]
+script = ExtResource("6")
 
 [node name="Trunk" type="StaticBody3D" parent="Trees/Tree1"]
 position = Vector3(0, 1, 0)
@@ -573,6 +731,9 @@ wrap_clearance = 1.08
 [node name="Tree2" type="Node3D" parent="Trees"]
 position = Vector3(28.3, 0, 20.6)
 
+[node name="Branches" type="Node3D" parent="Trees/Tree2"]
+script = ExtResource("6")
+
 [node name="Trunk" type="StaticBody3D" parent="Trees/Tree2"]
 position = Vector3(0, 1, 0)
 
@@ -600,6 +761,9 @@ wrap_clearance = 1.08
 
 [node name="Tree3" type="Node3D" parent="Trees"]
 position = Vector3(10.8, 0, 33.3)
+
+[node name="Branches" type="Node3D" parent="Trees/Tree3"]
+script = ExtResource("6")
 
 [node name="Trunk" type="StaticBody3D" parent="Trees/Tree3"]
 position = Vector3(0, 1, 0)
@@ -629,6 +793,9 @@ wrap_clearance = 1.08
 [node name="Tree4" type="Node3D" parent="Trees"]
 position = Vector3(-10.8, 0, 33.3)
 
+[node name="Branches" type="Node3D" parent="Trees/Tree4"]
+script = ExtResource("6")
+
 [node name="Trunk" type="StaticBody3D" parent="Trees/Tree4"]
 position = Vector3(0, 1, 0)
 
@@ -656,6 +823,9 @@ wrap_clearance = 1.08
 
 [node name="Tree5" type="Node3D" parent="Trees"]
 position = Vector3(-28.3, 0, 20.6)
+
+[node name="Branches" type="Node3D" parent="Trees/Tree5"]
+script = ExtResource("6")
 
 [node name="Trunk" type="StaticBody3D" parent="Trees/Tree5"]
 position = Vector3(0, 1, 0)
@@ -685,6 +855,9 @@ wrap_clearance = 1.08
 [node name="Tree6" type="Node3D" parent="Trees"]
 position = Vector3(-35, 0, 0)
 
+[node name="Branches" type="Node3D" parent="Trees/Tree6"]
+script = ExtResource("6")
+
 [node name="Trunk" type="StaticBody3D" parent="Trees/Tree6"]
 position = Vector3(0, 1, 0)
 
@@ -712,6 +885,9 @@ wrap_clearance = 1.08
 
 [node name="Tree7" type="Node3D" parent="Trees"]
 position = Vector3(-28.3, 0, -20.6)
+
+[node name="Branches" type="Node3D" parent="Trees/Tree7"]
+script = ExtResource("6")
 
 [node name="Trunk" type="StaticBody3D" parent="Trees/Tree7"]
 position = Vector3(0, 1, 0)
@@ -741,6 +917,9 @@ wrap_clearance = 1.08
 [node name="Tree8" type="Node3D" parent="Trees"]
 position = Vector3(-10.8, 0, -33.3)
 
+[node name="Branches" type="Node3D" parent="Trees/Tree8"]
+script = ExtResource("6")
+
 [node name="Trunk" type="StaticBody3D" parent="Trees/Tree8"]
 position = Vector3(0, 1, 0)
 
@@ -768,6 +947,9 @@ wrap_clearance = 1.08
 
 [node name="Tree9" type="Node3D" parent="Trees"]
 position = Vector3(10.8, 0, -33.3)
+
+[node name="Branches" type="Node3D" parent="Trees/Tree9"]
+script = ExtResource("6")
 
 [node name="Trunk" type="StaticBody3D" parent="Trees/Tree9"]
 position = Vector3(0, 1, 0)
@@ -797,6 +979,9 @@ wrap_clearance = 1.08
 [node name="Tree10" type="Node3D" parent="Trees"]
 position = Vector3(28.3, 0, -20.6)
 
+[node name="Branches" type="Node3D" parent="Trees/Tree10"]
+script = ExtResource("6")
+
 [node name="Trunk" type="StaticBody3D" parent="Trees/Tree10"]
 position = Vector3(0, 1, 0)
 
@@ -821,6 +1006,22 @@ wraps = 3.5
 pulse_speed = 1.4
 bulb_radius = 0.1
 wrap_clearance = 1.08
+
+[node name="BareTree1" type="Node3D" parent="Trees"]
+position = Vector3(28.5, 0, 9.27)
+script = ExtResource("8")
+
+[node name="BareTree2" type="Node3D" parent="Trees"]
+position = Vector3(-17.6, 0, 24.3)
+script = ExtResource("8")
+
+[node name="BareTree3" type="Node3D" parent="Trees"]
+position = Vector3(-28.5, 0, -9.27)
+script = ExtResource("8")
+
+[node name="BareTree4" type="Node3D" parent="Trees"]
+position = Vector3(-9.27, 0, -28.5)
+script = ExtResource("8")
 
 [node name="Snowfall" type="GPUParticles3D" parent="."]
 position = Vector3(0, 20, 0)

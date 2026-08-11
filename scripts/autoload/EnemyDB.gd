@@ -21,7 +21,7 @@ const STATS := {
 		"health": 22.0,
 		"speed": 3.1,
 		"damage": 6.0,
-		"attack_range": 11.0,
+		"attack_range": 7.0,
 		"attack_cooldown": 1.6,
 		"is_ranged": true,
 		"scale": 0.9,

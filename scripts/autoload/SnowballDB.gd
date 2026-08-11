@@ -7,26 +7,32 @@ extends Node
 ## thrown projectile's physics and SnowballVisuals.gd/get_shape(id) to
 ## build its look; "effect" drives what happens to an enemy it hits (see
 ## Snowball._hit_enemy). "rarity" is the present pickup's drop weight -
-## higher rolls more often (see get_random_id).
+## higher rolls more often (see get_random_id). Entries are deliberately
+## not in damage/rarity order (shuffled) - the common ones (25-28) are
+## meaningfully more likely than the uncommons (13), which are themselves
+## far more likely than ice (5) or, especially, the death ball (1: under
+## 1% of drops).
 
 const TYPES := {
-	"standard": {
-		"display_name": "Standard Snowball",
-		"desc": "A reliable, well-packed snowball. Nothing fancy.",
-		"damage": 20.0,
-		"color": Color(0.92, 0.94, 0.97),
-		"shape": "standard",
-		"effect": "none",
-		"rarity": 20,
+	"sticks": {
+		"display_name": "Stick Snowball",
+		"desc": "Bristling with sharp sticks. Causes bleeding.",
+		"damage": 25.0,
+		"color": Color(0.85, 0.9, 0.95),
+		"shape": "sticks",
+		"effect": "bleed",
+		"effect_dps": 4.0,
+		"effect_duration": 5.0,
+		"rarity": 13,
 	},
-	"perfect_white": {
-		"display_name": "Perfect Snowball",
-		"desc": "Flawlessly round and pure white. Thrown in total silence.",
-		"damage": 20.0,
-		"color": Color(1.0, 1.0, 1.0),
-		"shape": "perfect_white",
-		"effect": "silent",
-		"rarity": 12,
+	"death_ball": {
+		"display_name": "Death Snowball",
+		"desc": "A pulsating void of purple and black. Obliterates on contact.",
+		"damage": 9999.0,
+		"color": Color(0.28, 0.05, 0.38),
+		"shape": "death_ball",
+		"effect": "instakill",
+		"rarity": 1,
 	},
 	"piss_ball": {
 		"display_name": "Yellow Snowball",
@@ -37,39 +43,7 @@ const TYPES := {
 		"effect": "footprints",
 		"effect_color": Color(0.85, 0.72, 0.1),
 		"effect_duration": 10.0,
-		"rarity": 12,
-	},
-	"gravel": {
-		"display_name": "Gravel Snowball",
-		"desc": "Studded with rock. Bursts in a shotgun blast on impact.",
-		"damage": 25.0,
-		"color": Color(0.55, 0.52, 0.48),
-		"shape": "gravel",
-		"effect": "shotgun",
-		"effect_radius": 3.0,
-		"rarity": 10,
-	},
-	"sap": {
-		"display_name": "Tree Sap Snowball",
-		"desc": "Sticky sap and pine needles. Slows whatever it hits.",
-		"damage": 15.0,
-		"color": Color(0.62, 0.78, 0.32),
-		"shape": "sap",
-		"effect": "slow",
-		"effect_duration": 2.5,
-		"effect_factor": 0.45,
-		"rarity": 12,
-	},
-	"sticks": {
-		"display_name": "Stick Snowball",
-		"desc": "Bristling with sharp sticks. Causes bleeding.",
-		"damage": 25.0,
-		"color": Color(0.85, 0.9, 0.95),
-		"shape": "sticks",
-		"effect": "bleed",
-		"effect_dps": 4.0,
-		"effect_duration": 5.0,
-		"rarity": 10,
+		"rarity": 25,
 	},
 	"ice": {
 		"display_name": "Ice Snowball",
@@ -81,7 +55,16 @@ const TYPES := {
 		"effect_radius": 3.5,
 		"effect_duration": 2.0,
 		"effect_factor": 0.2,
-		"rarity": 6,
+		"rarity": 5,
+	},
+	"standard": {
+		"display_name": "Standard Snowball",
+		"desc": "A reliable, well-packed snowball. Nothing fancy.",
+		"damage": 20.0,
+		"color": Color(0.92, 0.94, 0.97),
+		"shape": "standard",
+		"effect": "none",
+		"rarity": 28,
 	},
 	"nails": {
 		"display_name": "Nail Snowball",
@@ -92,16 +75,37 @@ const TYPES := {
 		"effect": "bleed",
 		"effect_dps": 5.0,
 		"effect_duration": 5.0,
-		"rarity": 8,
+		"rarity": 13,
 	},
-	"death_ball": {
-		"display_name": "Death Snowball",
-		"desc": "A pulsating void of purple and black. Obliterates on contact.",
-		"damage": 9999.0,
-		"color": Color(0.28, 0.05, 0.38),
-		"shape": "death_ball",
-		"effect": "instakill",
-		"rarity": 1,
+	"sap": {
+		"display_name": "Tree Sap Snowball",
+		"desc": "Sticky sap and pine needles. Slows whatever it hits.",
+		"damage": 15.0,
+		"color": Color(0.62, 0.78, 0.32),
+		"shape": "sap",
+		"effect": "slow",
+		"effect_duration": 2.5,
+		"effect_factor": 0.45,
+		"rarity": 13,
+	},
+	"perfect_white": {
+		"display_name": "Perfect Snowball",
+		"desc": "Flawlessly round and pure white. Thrown in total silence.",
+		"damage": 20.0,
+		"color": Color(1.0, 1.0, 1.0),
+		"shape": "perfect_white",
+		"effect": "silent",
+		"rarity": 25,
+	},
+	"gravel": {
+		"display_name": "Gravel Snowball",
+		"desc": "Studded with rock. Bursts in a shotgun blast on impact.",
+		"damage": 25.0,
+		"color": Color(0.55, 0.52, 0.48),
+		"shape": "gravel",
+		"effect": "shotgun",
+		"effect_radius": 3.0,
+		"rarity": 13,
 	},
 }
 
@@ -161,7 +165,7 @@ func get_stats(id: String) -> Dictionary:
 	return stats
 
 ## Weighted random pick for present pickups - "rarity" is the weight, so
-## the death ball (rarity 1 against everything else's 6-20) is by far the
+## the death ball (rarity 1 against the commons' 25-28) is by far the
 ## least likely to come up.
 func get_random_id() -> String:
 	var total: float = 0.0
