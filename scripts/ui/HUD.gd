@@ -1,9 +1,5 @@
 extends CanvasLayer
 
-@onready var heart_icon: Control = $Root/HeartIcon
-@onready var health_label: Label = $Root/HeartIcon/HealthLabel
-@onready var shield_icon: Control = $Root/ShieldIcon
-@onready var armor_label: Label = $Root/ShieldIcon/ArmorLabel
 @onready var ball_icon: Control = $Root/BallIcon
 @onready var weapon_name_label: Label = $Root/WeaponNameLabel
 @onready var wave_label: Label = $Root/WaveLabel
@@ -13,19 +9,15 @@ extends CanvasLayer
 @onready var stats_list: VBoxContainer = $Root/StatsPanel/StatsList
 @onready var xp_fill: ColorRect = $Root/XPBar/Fill
 @onready var xp_level_label: Label = $Root/XPBar/LevelLabel
-@onready var coins_fill: ColorRect = $Root/CoinsBar/Fill
-@onready var coins_label: Label = $Root/CoinsBar/CoinsLabel
 
-const ARMOR_COLOR := Color(0.55, 0.6, 0.68)
 const STAT_FONT_SIZE := 15
 
 var _toast_timer: float = 0.0
 
 func _ready() -> void:
-	Game.health_changed.connect(_on_health_changed)
-	Game.armor_changed.connect(_on_armor_changed)
 	Game.wave_changed.connect(_on_wave_changed)
 	Game.kills_changed.connect(_on_kills_changed)
+	Game.exp_changed.connect(_on_exp_changed)
 	Game.snowball_type_changed.connect(_on_snowball_type_changed)
 	Game.upgrade_picked.connect(_on_upgrade_picked)
 	# Both upgrade cards (Game.upgrades_applied) and hat pickups (which don't
@@ -33,13 +25,9 @@ func _ready() -> void:
 	# the stats panel, since either can grant a stat boost.
 	Game.upgrades_applied.connect(_refresh_stats)
 	Game.hat_equipped.connect(func(_id: String) -> void: _refresh_stats())
-	Game.coins_changed.connect(_on_coins_changed)
-	_on_health_changed(Game.health, Game.max_health)
-	_on_armor_changed(Game.armor, Game.max_armor)
 	_on_wave_changed(Game.wave)
 	_on_kills_changed(Game.kills)
 	_on_snowball_type_changed(Game.current_snowball_type)
-	_on_coins_changed(Game.coins_collected)
 	_update_xp_bar()
 	_refresh_stats()
 	pause_overlay.visible = false
@@ -51,18 +39,6 @@ func _process(delta: float) -> void:
 		if _toast_timer <= 0.0:
 			toast_label.visible = false
 
-func _on_health_changed(current: float, max_health: float) -> void:
-	health_label.text = "%d/%d" % [int(current), int(max_health)]
-	heart_icon.set_fill_ratio(current / max_health if max_health > 0.0 else 0.0)
-
-func _on_armor_changed(current: float, max_armor: float) -> void:
-	if max_armor <= 0.0:
-		shield_icon.fill_color = Color(ARMOR_COLOR, 0.25)
-		armor_label.text = ""
-	else:
-		shield_icon.fill_color = ARMOR_COLOR
-		armor_label.text = "%d/%d" % [int(current), int(max_armor)]
-
 func _on_wave_changed(wave: int) -> void:
 	wave_label.text = "WAVE %d" % wave
 	# Also catches run resets (Game.reset_run always emits wave_changed(0)),
@@ -71,27 +47,21 @@ func _on_wave_changed(wave: int) -> void:
 
 func _on_kills_changed(kills: int) -> void:
 	kills_label.text = "Kills: %d" % kills
+
+func _on_exp_changed(_exp: int) -> void:
 	_update_xp_bar()
 
 func _on_snowball_type_changed(id: String) -> void:
 	ball_icon.fill_color = SnowballDB.get_color(id)
 	weapon_name_label.text = SnowballDB.get_display_name(id)
 
-## Kill-driven "level" - purely cosmetic (see Game.get_level/
-## get_level_progress), doesn't touch any stats. Every EXP_PER_LEVEL kills
-## fills the bar and bumps the level shown - also mirrored above the
-## player's own head, see Player.gd's level label.
+## Exp-driven "level" (see Game.get_level/get_level_progress) - every
+## EXP_PER_LEVEL exp (one snowflake pickup each, see ExpPickup.gd) fills the
+## bar, bumps the level shown, and grants an extra snowball per throw (see
+## Game.get_projectile_count()).
 func _update_xp_bar() -> void:
 	xp_fill.anchor_right = Game.get_level_progress()
 	xp_level_label.text = "LV %d" % Game.get_level()
-
-## Just a running total + progress toward the next proj_count upgrade
-## (every COINS_PER_PROJECTILE coins, see Game.add_coin()) - not tied to
-## the kill-driven level/XP bar above.
-func _on_coins_changed(coins_collected: int) -> void:
-	var progress: int = coins_collected % Game.COINS_PER_PROJECTILE
-	coins_fill.anchor_right = float(progress) / float(Game.COINS_PER_PROJECTILE)
-	coins_label.text = "Coins: %d" % coins_collected
 
 func _on_upgrade_picked(title: String) -> void:
 	toast_label.text = "Acquired: %s" % title
@@ -134,7 +104,7 @@ func _refresh_stats() -> void:
 		lines.append("Throw Power: +%d%%" % int(round((Game.get_throw_power_mult() - 1.0) * 100.0)))
 	if uc.get("proj_speed", 0) > 0:
 		lines.append("Proj Speed: +%d%%" % int(round((Game.get_projectile_speed_mult() - 1.0) * 100.0)))
-	if uc.get("proj_count", 0) > 0:
+	if Game.get_level() > 0:
 		lines.append("Snowballs/Throw: %d" % Game.get_projectile_count())
 	if Game.equipped_hat != "":
 		var hat_data: Dictionary = HatDB.get_data(Game.equipped_hat)

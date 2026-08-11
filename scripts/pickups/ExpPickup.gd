@@ -1,7 +1,8 @@
 extends Area3D
-## A coin dropped by a slain enemy. Doesn't touch throw speed at all - every
-## 3 coins collected this run permanently adds one more snowball to every
-## future throw (a fanned-out multi-shot). See Game.add_coin().
+## A snowflake dropped by a slain enemy. Doesn't touch any stat directly -
+## collecting one calls Game.add_exp(), which feeds the kill-free leveling
+## system (see Game.get_level()): enough exp fills a level, and every level
+## grants one more snowball per throw (Game.get_projectile_count()).
 ##
 ## Magnetizes toward the player once they're within MAGNET_RADIUS - pull
 ## speed ramps up the closer it gets, so it reads as "snapping in" for the
@@ -9,30 +10,35 @@ extends Area3D
 ##
 ## Visually it's a flat icy snowflake (built procedurally below, same
 ## flat-triangles-via-SurfaceTool technique as BillboardForest.gd/
-## MountainRange.gd) standing upright in the local XY plane - same trick the
-## old solid-gold-disc coin used, so a slow spin around the vertical axis
-## sweeps its face through every horizontal viewing angle instead of just
-## sitting there looking identical from every frame the way a spin around
-## its own flat-face normal would for a shape this symmetric.
+## MountainRange.gd) standing upright in the local XY plane, so a slow spin
+## around the vertical axis sweeps its face through every horizontal viewing
+## angle instead of just sitting there looking identical from every frame
+## the way a spin around its own flat-face normal would for a shape this
+## symmetric.
 
-const MAGNET_RADIUS := 10.0
+const EXP_VALUE := 1
+
+# This game has no tile grid, so "5 tiles" is mapped onto its existing scale
+# at 2.0 world units/tile (matches how far apart nearby props already read
+# as "one step" elsewhere in the game).
+const TILE_SIZE := 2.0
+const MAGNET_RADIUS := 5.0 * TILE_SIZE
 const MAGNET_SPEED_MIN := 6.0
 const MAGNET_SPEED_MAX := 22.0
-# Once magnetizing gets the coin at least this close, collect it directly
-# instead of waiting on the Area3D body_entered signal - that signal fires
-# off the physics server's own overlap check, which runs on a different
-## tick than the _process()-driven flight here, so "close to the flight
-# target" and "physically overlapping enough to trigger the signal" can
-# land on different frames. Without this, a coin could reach its target
-# point, stop (nothing left moving it), and never actually be collected -
-# reads as the coin permanently stuck to the player.
+# Once magnetizing gets the snowflake at least this close, collect it
+# directly instead of waiting on the Area3D body_entered signal - that
+# signal fires off the physics server's own overlap check, which runs on a
+# different tick than the _process()-driven flight here, so "close to the
+# flight target" and "physically overlapping enough to trigger the signal"
+# can land on different frames. Without this, a snowflake could reach its
+# target point, stop (nothing left moving it), and never actually be
+# collected - reads as it permanently stuck to the player.
 const COLLECT_DISTANCE := 0.4
 
 # Full spin cycle: TAU / ROTATE_SPEED seconds per revolution (~6.3s) - slow
 # and lazy rather than the frantic flip a higher rate would read as.
 const ROTATE_SPEED := 1.0
 
-# Matches the old coin disc's top_radius exactly - same footprint, new shape.
 const SNOWFLAKE_RADIUS := 0.28
 const ARM_COUNT := 6
 const ARM_WIDTH := 0.05
@@ -48,7 +54,7 @@ var _bob_time: float = 0.0
 var _collected: bool = false
 
 func _ready() -> void:
-	add_to_group("coin_pickups")
+	add_to_group("exp_pickups")
 	_bob_time = randf() * TAU
 	monitoring = true
 	body_entered.connect(_on_body_entered)
@@ -165,7 +171,7 @@ func _collect() -> void:
 	# by Godot - keeping it deferred here too since _collect() is now also
 	# reachable from that path.
 	set_deferred("monitoring", false)
-	Game.add_coin()
+	Game.add_exp(EXP_VALUE)
 	var tw := create_tween()
 	# A hair above zero, not Vector3.ZERO - an exactly-zero scale makes the
 	# physics engine's transform matrix singular (non-invertible), which

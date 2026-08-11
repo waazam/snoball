@@ -1,11 +1,11 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://scripts/pickups/CoinPickup.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/pickups/ExpPickup.gd" id="1"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_1"]
 radius = 0.45
 
-[node name="CoinPickup" type="Area3D"]
+[node name="ExpPickup" type="Area3D"]
 collision_layer = 0
 collision_mask = 2
 monitoring = true

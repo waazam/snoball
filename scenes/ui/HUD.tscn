@@ -1,9 +1,7 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/HUD.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/ui/HeartIcon.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/ui/CircleIcon.gd" id="3"]
-[ext_resource type="Script" path="res://scripts/ui/ShieldIcon.gd" id="4"]
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1")
@@ -12,47 +10,6 @@ script = ExtResource("1")
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
-
-[node name="HeartIcon" type="Control" parent="Root"]
-offset_left = 24.0
-offset_top = 20.0
-offset_right = 194.0
-offset_bottom = 190.0
-script = ExtResource("2")
-
-[node name="HealthLabel" type="Label" parent="Root/HeartIcon"]
-offset_left = 30.0
-offset_top = 78.0
-offset_right = 140.0
-offset_bottom = 118.0
-theme_override_font_sizes/font_size = 22
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 4
-horizontal_alignment = 1
-vertical_alignment = 1
-autowrap_mode = 2
-text = "100/100"
-
-[node name="ShieldIcon" type="Control" parent="Root"]
-offset_left = 206.0
-offset_top = 44.0
-offset_right = 336.0
-offset_bottom = 164.0
-script = ExtResource("4")
-
-[node name="ArmorLabel" type="Label" parent="Root/ShieldIcon"]
-offset_left = 20.0
-offset_top = 56.0
-offset_right = 110.0
-offset_bottom = 90.0
-theme_override_font_sizes/font_size = 18
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 4
-horizontal_alignment = 1
-vertical_alignment = 1
-text = "0"
 
 [node name="BallIcon" type="Control" parent="Root"]
 offset_left = 30.0
@@ -182,37 +139,6 @@ theme_override_constants/outline_size = 4
 horizontal_alignment = 1
 vertical_alignment = 1
 text = "LV 0"
-
-[node name="CoinsBar" type="Control" parent="Root"]
-anchor_left = 0.5
-anchor_right = 0.5
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = -320.0
-offset_top = -60.0
-offset_right = 320.0
-offset_bottom = -40.0
-mouse_filter = 2
-
-[node name="BG" type="ColorRect" parent="Root/CoinsBar"]
-anchor_right = 1.0
-anchor_bottom = 1.0
-color = Color(0.05, 0.05, 0.05, 0.75)
-
-[node name="Fill" type="ColorRect" parent="Root/CoinsBar"]
-anchor_bottom = 1.0
-color = Color(1, 0.85, 0.2, 1)
-
-[node name="CoinsLabel" type="Label" parent="Root/CoinsBar"]
-anchor_right = 1.0
-anchor_bottom = 1.0
-theme_override_font_sizes/font_size = 13
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 3
-horizontal_alignment = 1
-vertical_alignment = 1
-text = "Coins: 0"
 
 [node name="PauseOverlay" type="ColorRect" parent="Root"]
 anchor_right = 1.0

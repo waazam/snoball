@@ -2,14 +2,15 @@ extends CharacterBody3D
 ## Third-person player controller: WASD movement relative to facing, mouse
 ## look, upgradeable multi-jump, upgradeable dash. The primary snowball
 ## throws automatically at a fixed cadence of 1 every 0.5s - nothing in the
-## game speeds this cadence up, by design. Coin pickups add extra snowballs
-## instead of throwing the primary faster: those extras fire on their own,
-## faster, independent cadence, phase-offset so they land in the gaps
-## between primary throws (alternating rather than firing in lockstep with
-## it), and each extra always locks onto a different enemy than whatever
-## the primary is currently targeting (and than each other), instead of all
-## piling onto the same target. Every throw - primary or extra - gets at
-## least a baseline homing pull so it tracks its target in flight.
+## game speeds this cadence up, by design. Leveling up (collected exp
+## snowflakes, see Game.get_level()) adds extra snowballs instead of
+## throwing the primary faster: those extras fire on their own, faster,
+## independent cadence, phase-offset so they land in the gaps between
+## primary throws (alternating rather than firing in lockstep with it), and
+## each extra always locks onto a different enemy than whatever the primary
+## is currently targeting (and than each other), instead of all piling onto
+## the same target. Every throw - primary or extra - gets at least a
+## baseline homing pull so it tracks its target in flight.
 
 const GRAVITY := 22.0
 const MAX_FALL_SPEED := 40.0  # terminal velocity - guards against tunneling through thin colliders
@@ -25,7 +26,7 @@ const GROUND_ACCEL := 45.0  # units/sec^2 - reaches base move speed in ~0.13s, q
 const GROUND_DECEL := 55.0  # a bit sharper than accel so stopping still feels crisp instead of sliding
 const SNOWBALL_SCENE_PATH := "res://scenes/weapons/Snowball.tscn"
 const AUTO_THROW_INTERVAL := 0.5  # fixed: 1 primary snowball every 0.5s, always - nothing speeds this up
-const EXTRA_THROW_INTERVAL := 0.35  # extra (proj_count) snowballs fire on their own, faster cadence
+const EXTRA_THROW_INTERVAL := 0.35  # extra (level-driven) snowballs fire on their own, faster cadence
 const AUTO_LOCK_HOMING := 3.0
 const TARGET_SEARCH_RADIUS := 45.0
 const LOOK_ZONE_MIN_X_RATIO := 0.6  # only the right side of the screen can ever start a look-drag
@@ -76,7 +77,10 @@ const IDLE_SWAY_AMOUNT := 0.06  # radians, ~3.4 degrees - meant to be barely-the
 @onready var right_hip: Node3D = $RightHip
 @onready var throw_point: Marker3D = $RightShoulder/ThrowPoint
 @onready var hat_anchor: Node3D = $HatAnchor
-@onready var level_label: Label3D = $LevelLabel
+@onready var health_bar_fill: MeshInstance3D = $HealthBar/Fill
+@onready var health_bar_label: Label3D = $HealthBar/Label
+@onready var armor_bar_fill: MeshInstance3D = $ArmorBar/Fill
+@onready var armor_bar_label: Label3D = $ArmorBar/Label
 
 var jumps_used: int = 0
 var _throw_timer: float = 0.0
@@ -132,8 +136,10 @@ func _ready() -> void:
 	# up (Game.equipped_hat starts as "" on every fresh run).
 	if Game.equipped_hat != "":
 		_on_hat_equipped(Game.equipped_hat)
-	Game.kills_changed.connect(_on_kills_changed_update_level)
-	_on_kills_changed_update_level(Game.kills)
+	Game.health_changed.connect(_on_health_changed_update_bar)
+	Game.armor_changed.connect(_on_armor_changed_update_bar)
+	_on_health_changed_update_bar(Game.health, Game.max_health)
+	_on_armor_changed_update_bar(Game.armor, Game.max_armor)
 
 ## Captures each animated bone's rest orientation (needed by
 ## _bone_world_basis below).
@@ -192,11 +198,26 @@ func _on_hat_equipped(hat_id: String) -> void:
 	tw.tween_property(visual, "scale", Vector3(1.3, 1.3, 1.3), 0.1)
 	tw.tween_property(visual, "scale", Vector3.ONE, 0.15)
 
-## Mirrors the HUD's XP bar (same Game.get_level(), 1 kill = 1 exp,
-## EXP_PER_LEVEL kills per level) as a floating billboarded label over the
-## player's own head.
-func _on_kills_changed_update_level(_kills: int) -> void:
-	level_label.text = "Lv %d" % Game.get_level()
+## Floating health/armor gauges over the player's own head, same visual
+## language as Enemy.gd's HealthBar (a BG quad plus a Fill quad that shrinks
+## from the right, both billboarded/no-depth-test so they always read), plus
+## a numeric label neither enemy bar has. Fill's pivot is centered, so
+## shrinking scale.x alone would shrink symmetrically from both edges -
+## shifting position.x by half the removed width keeps the left edge fixed
+## and drains the bar to the right, matching Enemy._update_health_bar.
+const BAR_HALF_WIDTH := 0.4
+
+func _on_health_changed_update_bar(current: float, max_health: float) -> void:
+	var ratio: float = clampf(current / max_health, 0.0, 1.0) if max_health > 0.0 else 0.0
+	health_bar_fill.scale.x = ratio
+	health_bar_fill.position.x = -BAR_HALF_WIDTH * (1.0 - ratio)
+	health_bar_label.text = "%d/%d" % [int(round(current)), int(round(max_health))]
+
+func _on_armor_changed_update_bar(current: float, max_armor: float) -> void:
+	var ratio: float = clampf(current / max_armor, 0.0, 1.0) if max_armor > 0.0 else 0.0
+	armor_bar_fill.scale.x = ratio
+	armor_bar_fill.position.x = -BAR_HALF_WIDTH * (1.0 - ratio)
+	armor_bar_label.text = "%d/%d" % [int(round(current)), int(round(max_armor))]
 
 func _unhandled_input(event: InputEvent) -> void:
 	if Game.state != Game.State.PLAYING:
@@ -424,10 +445,12 @@ func _handle_dash(delta: float) -> void:
 # --- Throwing (automatic, fixed cadence, auto-lock on nearest enemy) -----
 # The primary is a hard-fixed 1 throw per 0.5s - nothing in the game (kills,
 # upgrades, pickups) is allowed to change that. The projectile COUNT from
-# coins instead spawns extra throws on their own separate, faster timer
-# (EXTRA_THROW_INTERVAL), phase-started at a half-interval offset so they
-# land in the gaps between primary throws rather than firing alongside
-# them. Per-projectile speed/damage still scale with upgrades either way.
+# leveling up (collected exp snowflakes, see Game.get_level/
+# get_projectile_count) instead spawns extra throws on their own separate,
+# faster timer (EXTRA_THROW_INTERVAL), phase-started at a half-interval
+# offset so they land in the gaps between primary throws rather than firing
+# alongside them. Per-projectile speed/damage still scale with upgrades
+# either way.
 func _handle_auto_throw(delta: float) -> void:
 	_throw_timer -= delta
 	if _throw_timer <= 0.0:
@@ -448,7 +471,7 @@ func _throw_snowball() -> void:
 	var dir: Vector3 = (target.global_position + Vector3.UP - throw_point.global_position).normalized()
 	_spawn_snowball(dir, _current_throw_stats(), SnowballDB.get_color(Game.current_snowball_type))
 
-## The extra (proj_count) throws: fire together on their own cadence, each
+## The extra (level-driven) throws: fire together on their own cadence, each
 ## locked onto a different enemy than the current primary target and than
 ## each other, instead of piling onto/fanning around one target. Gracefully
 ## throws fewer than the full count if there aren't enough distinct enemies
