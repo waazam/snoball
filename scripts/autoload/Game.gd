@@ -14,12 +14,11 @@ signal state_changed(new_state: int)
 signal snowball_type_changed(id: String)
 signal upgrades_applied
 signal upgrade_picked(title: String)
-signal coins_changed(coins_collected: int)
+signal exp_changed(exp: int)
 
 enum State { MENU, PLAYING, UPGRADE, PAUSED, GAME_OVER }
 
-const COINS_PER_PROJECTILE := 3
-const EXP_PER_LEVEL := 10  # 1 kill = 1 exp
+const EXP_PER_LEVEL := 10  # 1 snowflake pickup = 1 exp
 
 var state: int = State.MENU
 
@@ -27,7 +26,7 @@ var state: int = State.MENU
 var wave: int = 0
 var score: int = 0
 var kills: int = 0
-var coins_collected: int = 0
+var exp: int = 0
 var max_health: float = 100.0
 var health: float = 100.0
 var max_armor: float = 0.0
@@ -52,7 +51,6 @@ var upgrade_counts: Dictionary = {
 	"regen": 0,
 	"throw_power": 0,
 	"proj_speed": 0,
-	"proj_count": 0,
 }
 
 # Which of SnowballDB's 9 types the player currently throws. Always starts
@@ -71,11 +69,11 @@ func reset_run() -> void:
 	wave = 0
 	score = 0
 	kills = 0
-	coins_collected = 0
+	exp = 0
 	upgrade_counts = {
 		"speed": 0, "jump_height": 0, "air_control": 0,
 		"dash_cooldown": 0, "dash_charge": 0,
-		"max_health": 0, "regen": 0, "throw_power": 0, "proj_speed": 0, "proj_count": 0,
+		"max_health": 0, "regen": 0, "throw_power": 0, "proj_speed": 0,
 	}
 	double_jump_unlocked = false
 	triple_jump_unlocked = false
@@ -91,6 +89,7 @@ func reset_run() -> void:
 	emit_signal("armor_changed", armor, max_armor)
 	emit_signal("score_changed", score)
 	emit_signal("kills_changed", kills)
+	emit_signal("exp_changed", exp)
 	emit_signal("wave_changed", wave)
 	emit_signal("snowball_type_changed", current_snowball_type)
 
@@ -119,29 +118,24 @@ func add_kill() -> void:
 	kills += 1
 	emit_signal("kills_changed", kills)
 
-## Coins don't touch throw speed at all - every COINS_PER_PROJECTILE
-## collected grants one extra snowball per throw instead.
-func add_coin() -> void:
-	coins_collected += 1
-	emit_signal("coins_changed", coins_collected)
-	var progress: int = coins_collected % COINS_PER_PROJECTILE
-	if progress == 0:
-		upgrade_counts["proj_count"] = upgrade_counts.get("proj_count", 0) + 1
-		apply_upgrades_changed()
-		emit_signal("upgrade_picked", "+1 Snowball per throw!")
-	else:
-		emit_signal("upgrade_picked", "Coin (%d/%d)" % [progress, COINS_PER_PROJECTILE])
+## Called when the player collects a snowflake pickup dropped by a slain
+## enemy (see Enemy.gd/ExpPickup.gd) - kills themselves no longer grant exp
+## directly, so a kill only counts toward leveling once its snowflake is
+## actually picked up.
+func add_exp(amount: int) -> void:
+	exp += amount
+	emit_signal("exp_changed", exp)
 
-## Level = how many full groups of EXP_PER_LEVEL kills have been racked up
-## this run (1 kill = 1 exp). Purely cosmetic - the HUD's XP bar and the
-## floating level label over the player's head (see Player.gd) both read
-## this, but it doesn't affect any actual stats.
+## Level = how many full groups of EXP_PER_LEVEL exp have been racked up
+## this run. Drives get_projectile_count() below, so every level-up grants
+## an extra snowball per throw - also mirrored by the HUD's XP bar (see
+## HUD.gd).
 func get_level() -> int:
-	return kills / EXP_PER_LEVEL
+	return exp / EXP_PER_LEVEL
 
 ## 0.0-1.0 progress toward the next level, for the HUD's XP bar fill.
 func get_level_progress() -> float:
-	return float(kills % EXP_PER_LEVEL) / float(EXP_PER_LEVEL)
+	return float(exp % EXP_PER_LEVEL) / float(EXP_PER_LEVEL)
 
 func take_damage(amount: float) -> void:
 	if state != State.PLAYING:
@@ -205,8 +199,10 @@ func get_throw_power_mult() -> float:
 func get_projectile_speed_mult() -> float:
 	return 1.0 + upgrade_counts.get("proj_speed", 0) * 0.15
 
+## Extra snowballs per throw scale directly with level - see get_level()
+## above and add_exp().
 func get_projectile_count() -> int:
-	return 1 + upgrade_counts.get("proj_count", 0)
+	return 1 + get_level()
 
 # --- Snowballs -------------------------------------------------------------
 ## Called by present pickups. Permanent until the next present (see

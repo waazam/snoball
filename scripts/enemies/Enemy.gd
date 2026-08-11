@@ -13,8 +13,7 @@ const DASH_SPEED_MULT := 2.6
 const DASH_TIME := 0.22
 const DASH_INTERVAL_MIN := 4.0
 const DASH_INTERVAL_MAX := 8.0
-const COIN_SCENE_PATH := "res://scenes/pickups/CoinPickup.tscn"
-const COIN_DROP_CHANCE := 0.4
+const EXP_PICKUP_SCENE_PATH := "res://scenes/pickups/ExpPickup.tscn"
 
 var enemy_id: String = "grunt"
 var max_health: float = 30.0
@@ -339,7 +338,7 @@ func _die() -> void:
 		_hit_scale_tween.kill()
 	Game.add_score(score_value)
 	Game.add_kill()
-	_maybe_drop_coin()
+	_drop_exp_pickup()
 	_spawn_death_fx()
 	remove_from_group("enemies")
 	collision.set_deferred("disabled", true)
@@ -356,13 +355,14 @@ func _die() -> void:
 func _spawn_death_fx() -> void:
 	pass
 
-func _maybe_drop_coin() -> void:
-	if randf() > COIN_DROP_CHANCE:
-		return
-	var scene: PackedScene = load(COIN_SCENE_PATH)
-	var coin: Area3D = scene.instantiate()
-	get_tree().current_scene.add_child(coin)
-	coin.global_position = global_position + Vector3.UP * 0.3
+## Every kill drops one exp snowflake - leveling no longer comes from the
+## kill itself, only from the player actually collecting the pickup it
+## leaves behind (see ExpPickup.gd).
+func _drop_exp_pickup() -> void:
+	var scene: PackedScene = load(EXP_PICKUP_SCENE_PATH)
+	var pickup: Area3D = scene.instantiate()
+	get_tree().current_scene.add_child(pickup)
+	pickup.global_position = global_position + Vector3.UP * 0.3
 
 func _get_player() -> Node3D:
 	var players := get_tree().get_nodes_in_group("player")
