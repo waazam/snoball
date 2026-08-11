@@ -304,14 +304,19 @@ func _spawn_damage_number(amount: float) -> void:
 	label.global_position = health_bar.global_position + Vector3(0, 0.25, 0)
 	label.setup(amount)
 
-## Quick squash-and-flash punch so a hit reads clearly even in a crowd: the
-## body mesh flashes white and the whole enemy squashes/rebounds, both
-## relative to its own base scale/color (see setup()) so they don't fight
-## the per-enemy size (brutes etc.) or the death-shrink tween.
+## Quick pop-and-flash punch so a hit reads clearly even in a crowd: the
+## body mesh flashes white and the whole enemy pops up in size and rebounds,
+## both relative to its own base scale/color (see setup()) so they don't
+## fight the per-enemy size (brutes etc.) or the death-shrink tween. The pop
+## is a uniform scale (not an X/Z-stretch-vs-Y-squash) because this scale is
+## applied to the root CharacterBody3D - Jolt Physics (this project's 3D
+## physics engine) doesn't support non-uniform scaling on a capsule
+## collision shape and logs an error on every single frame of a squashed
+## tween otherwise.
 func _play_hit_reaction() -> void:
 	if _hit_scale_tween and _hit_scale_tween.is_valid():
 		_hit_scale_tween.kill()
-	scale = _base_scale * Vector3(1.18, 0.82, 1.18)
+	scale = _base_scale * 1.16
 	_hit_scale_tween = create_tween()
 	_hit_scale_tween.tween_property(self, "scale", _base_scale, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
@@ -338,7 +343,10 @@ func _die() -> void:
 	remove_from_group("enemies")
 	collision.set_deferred("disabled", true)
 	var tw := create_tween()
-	tw.tween_property(self, "scale", Vector3.ZERO, 0.25)
+	# A hair above zero, not Vector3.ZERO - an exactly-zero scale makes the
+	# physics engine's transform matrix singular (non-invertible), which
+	# Jolt logs as an error and has to paper over every frame of the tween.
+	tw.tween_property(self, "scale", Vector3.ONE * 0.001, 0.25)
 	tw.tween_callback(queue_free)
 
 func _maybe_drop_coin() -> void:

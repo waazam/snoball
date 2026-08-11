@@ -76,6 +76,10 @@ func _on_upgrade_picked(title: String) -> void:
 
 func set_paused(paused: bool) -> void:
 	pause_overlay.visible = paused
+	# The game has no separate SFX/music buses (see SoundFX.gd) - everything
+	# plays on Master, so muting that one bus silences all game sound while
+	# paused without touching individual AudioStreamPlayers.
+	AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"), paused)
 
 ## Rebuilds the "active power-ups" list from every stacking upgrade counter,
 ## permanent movement unlocks, and the currently equipped hat, so any boost

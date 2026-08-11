@@ -42,6 +42,19 @@ const STATS := {
 		"scene_path": "res://scenes/enemies/EnemyReindeer.tscn",
 		"score": 30,
 	},
+	"snowman": {
+		"display_name": "Snowman Boss",
+		"health": 300.0,
+		"speed": 2.0,
+		"damage": 10.0,
+		"attack_range": 8.0,
+		"attack_cooldown": 1.4,
+		"is_ranged": true,
+		"scale": 1.6,
+		"color": Color(0.95, 0.97, 1.0),
+		"scene_path": "res://scenes/enemies/EnemySnowman.tscn",
+		"score": 100,
+	},
 }
 
 func get_stats(id: String) -> Dictionary:
@@ -74,5 +87,9 @@ func get_wave_composition(wave: int) -> Array:
 		var brutes: int = 1 + int(wave / 2)
 		for i in brutes:
 			comp.append("brute")
+	# Boss wave: a single high-health Snowman, every odd wave from 3 onward
+	# (3, 5, 7, ...) rather than a scaling count like the other enemy types.
+	if wave >= 3 and wave % 2 == 1:
+		comp.append("snowman")
 	comp.shuffle()
 	return comp
