@@ -1,4 +1,4 @@
-[gd_scene load_steps=49 format=3]
+[gd_scene load_steps=48 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/WaveManager.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/world/LowPolySky.gd" id="2"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/world/MountainRange.gd" id="13"]
 [ext_resource type="Script" path="res://scripts/world/CloudLayer.gd" id="14"]
 [ext_resource type="Script" path="res://scripts/world/MapFiller.gd" id="15"]
+[ext_resource type="Script" path="res://scripts/world/Terrain.gd" id="16"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 sky_top_color = Color(0.16, 0.11, 0.26, 1)
@@ -31,12 +32,6 @@ fog_enabled = true
 fog_light_color = Color(0.95, 0.55, 0.32, 1)
 fog_density = 0.008
 fog_sky_affect = 0.45
-
-[sub_resource type="BoxMesh" id="BoxMesh_ground"]
-size = Vector3(200, 1, 200)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
-size = Vector3(200, 4, 200)
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_snowAlbedo"]
 seed = 42
@@ -292,15 +287,8 @@ light_angular_distance = 2.5
 shadow_enabled = true
 
 [node name="Ground" type="StaticBody3D" parent="."]
-position = Vector3(0, -0.5, 0)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Ground"]
-mesh = SubResource("BoxMesh_ground")
-surface_material_override/0 = SubResource("StdMat_snowGround")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
-position = Vector3(0, -1.5, 0)
-shape = SubResource("BoxShape3D_ground")
+script = ExtResource("16")
+ground_material = SubResource("StdMat_snowGround")
 
 [node name="Walls" type="Node3D" parent="."]
 

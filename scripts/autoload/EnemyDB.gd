@@ -55,6 +55,22 @@ const STATS := {
 		"scene_path": "res://scenes/enemies/EnemySnowman.tscn",
 		"score": 100,
 	},
+	"santa": {
+		"display_name": "Santa Claus",
+		"health": 1000.0,
+		"speed": 1.7,
+		"damage": 18.0,
+		"attack_range": 16.0,
+		"attack_cooldown": 2.4,
+		"is_ranged": true,
+		"scale": 2.6,  # the largest enemy in the game - bigger than the snowman boss's 2.0
+		"color": Color(0.75, 0.08, 0.1),
+		"scene_path": "res://scenes/enemies/EnemySanta.tscn",
+		"score": 400,
+		# A one-time wave-10 boss - his 1000 health is meant literally, not
+		# a base value the usual per-wave scaling formula multiplies up.
+		"scales_with_wave": false,
+	},
 }
 
 func get_stats(id: String) -> Dictionary:
@@ -67,6 +83,8 @@ func get_scene_path(id: String) -> String:
 ## Enemies get tougher, harder-hitting, AND noticeably faster as waves climb.
 func get_scaled_stats(id: String, wave: int) -> Dictionary:
 	var s := get_stats(id)
+	if not s.get("scales_with_wave", true):
+		return s
 	var w: int = maxi(0, wave - 1)
 	s["health"] = s["health"] * (1.0 + w * 0.25)
 	s["damage"] = s["damage"] * (1.0 + w * 0.18)
@@ -91,5 +109,8 @@ func get_wave_composition(wave: int) -> Array:
 	# (3, 5, 7, ...) rather than a scaling count like the other enemy types.
 	if wave >= 3 and wave % 2 == 1:
 		comp.append("snowman")
+	# Santa Claus: a single massive one-time boss, exactly on wave 10.
+	if wave == 10:
+		comp.append("santa")
 	comp.shuffle()
 	return comp

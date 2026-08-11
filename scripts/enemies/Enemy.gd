@@ -340,6 +340,7 @@ func _die() -> void:
 	Game.add_score(score_value)
 	Game.add_kill()
 	_maybe_drop_coin()
+	_spawn_death_fx()
 	remove_from_group("enemies")
 	collision.set_deferred("disabled", true)
 	var tw := create_tween()
@@ -348,6 +349,12 @@ func _die() -> void:
 	# Jolt logs as an error and has to paper over every frame of the tween.
 	tw.tween_property(self, "scale", Vector3.ONE * 0.001, 0.25)
 	tw.tween_callback(queue_free)
+
+## Per-subtype death effect hook - no-op by default. EnemySnowman skips
+## this entirely (it detonates via _detonate() instead of a normal death),
+## while EnemyElf overrides it for a confetti burst.
+func _spawn_death_fx() -> void:
+	pass
 
 func _maybe_drop_coin() -> void:
 	if randf() > COIN_DROP_CHANCE:

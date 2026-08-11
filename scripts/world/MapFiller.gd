@@ -30,12 +30,17 @@ func _ready() -> void:
 	for i in PLATFORM_COUNT:
 		_spawn_platform(rng)
 
+## y is the actual terrain height at (x, z) (see TerrainHeight.gd), not a
+## flat 0 - the ground out here rolls now, so every caller below builds on
+## top of this instead of assuming flat ground like it used to.
 func _random_point(rng: RandomNumberGenerator) -> Vector3:
 	var angle: float = rng.randf() * TAU
 	# sqrt bias so points don't bunch up near the inner edge - even density
 	# across the ring's actual area, not just its radius.
 	var radius: float = lerpf(INNER_RADIUS, OUTER_RADIUS, sqrt(rng.randf()))
-	return Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
+	var x: float = cos(angle) * radius
+	var z: float = sin(angle) * radius
+	return Vector3(x, TerrainHeight.get_height(x, z), z)
 
 ## Same trunk-cylinder + PineCanopy.gd combo Arena.tscn's hand-placed
 ## Tree1-10 use, minus the Christmas lights (these are background fill,
@@ -78,7 +83,7 @@ func _spawn_rock(rng: RandomNumberGenerator) -> void:
 	var rock := StaticBody3D.new()
 	var s: float = rng.randf_range(0.7, 2.0)
 	var pos: Vector3 = _random_point(rng)
-	pos.y = s
+	pos.y += s  # rest ON the terrain height _random_point already gave it, not overwrite it
 	rock.position = pos
 	rock.scale = Vector3(s, s, s)
 	add_child(rock)

@@ -21,6 +21,8 @@ const PITCH_MAX := 1.2    # ~70 deg
 const DASH_SPEED := 22.0
 const DASH_TIME := 0.18
 const SPRINT_MULT := 1.35
+const GROUND_ACCEL := 45.0  # units/sec^2 - reaches base move speed in ~0.13s, quick but not an instant snap
+const GROUND_DECEL := 55.0  # a bit sharper than accel so stopping still feels crisp instead of sliding
 const SNOWBALL_SCENE_PATH := "res://scenes/weapons/Snowball.tscn"
 const AUTO_THROW_INTERVAL := 0.5  # fixed: 1 primary snowball every 0.5s, always - nothing speeds this up
 const EXTRA_THROW_INTERVAL := 0.35  # extra (proj_count) snowballs fire on their own, faster cadence
@@ -56,6 +58,12 @@ const ARM_DROP_ANGLE := PI / 2.0
 const RUN_BOB_HEIGHT := 0.05
 const AIR_STRETCH := Vector3(0.94, 1.1, 0.94)
 const LAND_SQUASH := Vector3(1.16, 0.82, 1.16)
+
+# Subtle idle drift on the hanging arms - keeps them from reading as a
+# perfectly frozen mannequin when standing still. Fades out as the walk
+# swing takes over (see _update_animation) rather than fighting it.
+const IDLE_SWAY_SPEED := 1.6
+const IDLE_SWAY_AMOUNT := 0.06  # radians, ~3.4 degrees - meant to be barely-there
 
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
@@ -95,6 +103,7 @@ var dash_timer: float = 0.0
 var dash_dir: Vector3 = Vector3.ZERO
 
 var _anim_time: float = 0.0
+var _idle_time: float = 0.0
 var _is_throwing: bool = false
 var _throw_tween: Tween = null
 
@@ -244,12 +253,28 @@ func _physics_process(delta: float) -> void:
 func take_hit(amount: float) -> void:
 	Game.take_damage(amount)
 
+## Called by outside effects (e.g. EnemySanta.gd's snowstorm) to shove the
+## player around - a ONE-TIME velocity impulse added straight into
+## `velocity`, unlike Enemy.gd's external_velocity/apply_knockback (which
+## stores the push and re-adds it every frame while it decays). That
+## pattern is safe for enemies only because their velocity.x/z get freshly
+## overwritten by AI logic every single frame regardless, so nothing else
+## would preserve a knockback push otherwise. The player's velocity - most
+## importantly velocity.y under gravity - already persists and accumulates
+## frame to frame on its own; re-adding the same undecayed magnitude again
+## every frame on top of that compounds explosively instead of decaying
+## (confirmed by simulating it: a single launch reached y=1000+ instead of
+## arcing back down), since nothing here resets it back down in between.
+func apply_external_velocity(v: Vector3) -> void:
+	velocity += v
+
 # --- Procedural animation ---------------------------------------------------
 # LeftHip/RightHip/LeftShoulder still exist (Player.tscn keeps them as
 # empty pivots so these @onready refs don't fail) but no longer drive any
 # visible mesh - real leg animation now runs on CharacterRigged.glb's own
 # Skeleton3D bones instead (see BONE_*/_apply_bone_swing above).
 func _update_animation(delta: float) -> void:
+	_idle_time += delta
 	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
 	var moving: bool = horizontal_speed > 0.4 and is_on_floor() and not is_dashing
 	var target_amp: float = 0.0
@@ -268,10 +293,18 @@ func _update_animation(delta: float) -> void:
 	# Model's own position, unrelated to this and fixed there instead, so
 	# this is back on.)
 	var swing: float = sin(_anim_time) * target_amp
+
+	# Both arms drift the same direction together (unlike the swing above,
+	# which alternates) - reads as a gentle relaxed weight-shift rather than
+	# independent fidgeting. Scaled down by how much the real stride swing
+	# is already contributing, so it adds life at a standstill without
+	# fighting or muddying the walk cycle once that takes over.
+	var idle_sway: float = sin(_idle_time * IDLE_SWAY_SPEED) * IDLE_SWAY_AMOUNT * (1.0 - target_amp)
+
 	_apply_bone_swing(BONE_LEG_NEG_X, swing * 0.7, LEG_SWING_AXIS, blend)
 	_apply_bone_swing(BONE_LEG_POS_X, -swing * 0.7, LEG_SWING_AXIS, blend)
-	_apply_arm_swing(BONE_ARM_NEG_X, ARM_DROP_ANGLE, -swing * 0.6, blend)
-	_apply_arm_swing(BONE_ARM_POS_X, -ARM_DROP_ANGLE, swing * 0.6, blend)
+	_apply_arm_swing(BONE_ARM_NEG_X, ARM_DROP_ANGLE, -swing * 0.6 + idle_sway, blend)
+	_apply_arm_swing(BONE_ARM_POS_X, -ARM_DROP_ANGLE, swing * 0.6 + idle_sway, blend)
 
 	# A small double-bounce bob (2 bounces per stride, one per footfall),
 	# fading in/out with target_amp so the model eases to a dead stop
@@ -338,8 +371,14 @@ func _handle_movement(delta: float) -> void:
 		speed *= SPRINT_MULT
 	var target := wish * speed
 	if is_on_floor():
-		velocity.x = target.x
-		velocity.z = target.z
+		# Eased toward the target instead of snapping straight to it - still
+		# quick (full speed in well under a quarter-second) but no longer an
+		# instant velocity jump every time input starts/stops, which read as
+		# twitchy. Decel a hair faster than accel so stopping still feels
+		# crisp rather than sliding.
+		var rate: float = GROUND_ACCEL if wish.length() > 0.01 else GROUND_DECEL
+		velocity.x = move_toward(velocity.x, target.x, rate * delta)
+		velocity.z = move_toward(velocity.z, target.z, rate * delta)
 	else:
 		var accel: float = 5.0 * Game.get_air_control_mult()
 		velocity.x = move_toward(velocity.x, target.x, accel * delta * max(speed, 1.0))

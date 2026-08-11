@@ -6,6 +6,14 @@ extends Area3D
 ## Magnetizes toward the player once they're within MAGNET_RADIUS - pull
 ## speed ramps up the closer it gets, so it reads as "snapping in" for the
 ## last stretch instead of a flat crawl the whole way.
+##
+## Visually it's a flat icy snowflake (built procedurally below, same
+## flat-triangles-via-SurfaceTool technique as BillboardForest.gd/
+## MountainRange.gd) standing upright in the local XY plane - same trick the
+## old solid-gold-disc coin used, so a slow spin around the vertical axis
+## sweeps its face through every horizontal viewing angle instead of just
+## sitting there looking identical from every frame the way a spin around
+## its own flat-face normal would for a shape this symmetric.
 
 const MAGNET_RADIUS := 10.0
 const MAGNET_SPEED_MIN := 6.0
@@ -20,6 +28,22 @@ const MAGNET_SPEED_MAX := 22.0
 # reads as the coin permanently stuck to the player.
 const COLLECT_DISTANCE := 0.4
 
+# Full spin cycle: TAU / ROTATE_SPEED seconds per revolution (~6.3s) - slow
+# and lazy rather than the frantic flip a higher rate would read as.
+const ROTATE_SPEED := 1.0
+
+# Matches the old coin disc's top_radius exactly - same footprint, new shape.
+const SNOWFLAKE_RADIUS := 0.28
+const ARM_COUNT := 6
+const ARM_WIDTH := 0.05
+const HUB_RADIUS := 0.06
+const BRANCH_WIDTH := 0.035
+const BRANCH_ANGLE := deg_to_rad(35.0)
+const BRANCH_LEN_FRAC := 0.32
+const BRANCH_FRACTIONS := [0.5, 0.78]  # how far along each arm the two branch pairs sprout
+const CORE_COLOR := Color(0.75, 0.92, 1.0)
+const EDGE_COLOR := Color(0.95, 0.99, 1.0)
+
 var _bob_time: float = 0.0
 var _collected: bool = false
 
@@ -28,12 +52,81 @@ func _ready() -> void:
 	_bob_time = randf() * TAU
 	monitoring = true
 	body_entered.connect(_on_body_entered)
+	_spawn_visual()
+
+func _spawn_visual() -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = _build_snowflake_mesh()
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.disable_receive_shadows = true
+	mat.emission_enabled = true
+	mat.emission = Color(0.6, 0.85, 1.0)
+	mat.emission_energy_multiplier = 0.4
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+
+## A simple 6-armed snowflake glyph: a small hub plus 6 spokes out to
+## SNOWFLAKE_RADIUS, each with a pair of angled side-branches near the tip -
+## flat (Z=0), so it needs the material's cull_mode disabled above to be
+## visible from both sides as it spins.
+func _build_snowflake_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_add_hub(st, HUB_RADIUS, CORE_COLOR)
+	for i in ARM_COUNT:
+		var angle: float = i * (TAU / ARM_COUNT)
+		var dir := Vector2(cos(angle), sin(angle))
+		_add_stick(st, Vector2.ZERO, dir * SNOWFLAKE_RADIUS, ARM_WIDTH, EDGE_COLOR)
+		for frac in BRANCH_FRACTIONS:
+			var base: Vector2 = dir * (SNOWFLAKE_RADIUS * frac)
+			var branch_len: float = SNOWFLAKE_RADIUS * BRANCH_LEN_FRAC * (1.0 - frac * 0.3)
+			for side in [-1.0, 1.0]:
+				var branch_dir: Vector2 = dir.rotated(side * BRANCH_ANGLE)
+				_add_stick(st, base, base + branch_dir * branch_len, BRANCH_WIDTH, EDGE_COLOR)
+	st.generate_normals()
+	return st.commit()
+
+## A small hexagonal fan at the center so the arms have somewhere to meet.
+func _add_hub(st: SurfaceTool, radius: float, color: Color) -> void:
+	for i in 6:
+		var a0: float = (TAU / 6.0) * i
+		var a1: float = (TAU / 6.0) * (i + 1)
+		var p0 := Vector3(cos(a0) * radius, sin(a0) * radius, 0.0)
+		var p1 := Vector3(cos(a1) * radius, sin(a1) * radius, 0.0)
+		_add_tri(st, Vector3.ZERO, p0, p1, color)
+
+## A thin rectangle from `from` to `to`, `width` units wide - one arm or
+## branch of the snowflake.
+func _add_stick(st: SurfaceTool, from: Vector2, to: Vector2, width: float, color: Color) -> void:
+	var dir: Vector2 = (to - from).normalized()
+	var perp: Vector2 = Vector2(-dir.y, dir.x) * (width * 0.5)
+	var a := Vector3(from.x - perp.x, from.y - perp.y, 0.0)
+	var b := Vector3(to.x - perp.x, to.y - perp.y, 0.0)
+	var c := Vector3(to.x + perp.x, to.y + perp.y, 0.0)
+	var d := Vector3(from.x + perp.x, from.y + perp.y, 0.0)
+	_add_quad(st, a, b, c, d, color)
+
+func _add_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, color: Color) -> void:
+	st.set_color(color)
+	st.add_vertex(a)
+	st.set_color(color)
+	st.add_vertex(b)
+	st.set_color(color)
+	st.add_vertex(c)
+
+func _add_quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, color: Color) -> void:
+	_add_tri(st, a, b, c, color)
+	_add_tri(st, a, c, d, color)
 
 func _process(delta: float) -> void:
 	if _collected:
 		return
 	_bob_time += delta
-	rotate_y(delta * 2.2)
+	rotate_y(delta * ROTATE_SPEED)
 	var player: Node3D = _get_player()
 	if player and global_position.distance_to(player.global_position) <= MAGNET_RADIUS:
 		_fly_toward(player, delta)
