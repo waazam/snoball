@@ -31,50 +31,24 @@ const AUTO_LOCK_HOMING := 3.0
 const TARGET_SEARCH_RADIUS := 45.0
 const LOOK_ZONE_MIN_X_RATIO := 0.6  # only the right side of the screen can ever start a look-drag
 
-# CharacterRigged.glb (see Model below) has a real Skeleton3D - 15 bones,
-# but auto-named by the export ("Bone", "Bone.002", ...) with no semantic
-# names to go by. Bone indices below were identified from the model's rest
-# pose (position + parent/child structure), not guessed: two root bones at
-# the hip - one fans out to a head bone and two arm chains (shoulder/elbow/
-# wrist), the other fans out to two leg chains (hip/knee/ankle).
-const BONE_ARM_POS_X := 2   # shoulder, arm resting toward +X
-const BONE_ARM_NEG_X := 5   # shoulder, arm resting toward -X (mirror)
-const BONE_LEG_NEG_X := 9   # hip, leg resting toward -X
-const BONE_LEG_POS_X := 12  # hip, leg resting toward +X (mirror)
-
-# Legs rest pointing straight down (local -Y), so rotating a leg bone
-# around the character's own X axis sweeps it forward/back - the same
-# relationship RunAnim's old hip pivots relied on, just derived here from
-# the bone's actual rest orientation instead of assumed. Arms, though,
-# rest in a T-pose (straight out to the sides along X) rather than hanging
-# down - swinging them around X wouldn't visibly move them at all (X is
-# their own long axis), and getting a T-pose arm to swing forward/back
-# needs a different axis than getting it to hang down in the first place.
-# Rather than stack two unverified guesses, arms only get the one-time
-# T-pose -> hanging-down correction (_ready()) and no dynamic swing.
-const LEG_SWING_AXIS := Vector3(1, 0, 0)
-const ARM_DROP_AXIS := Vector3(0, 0, 1)
-const ARM_DROP_ANGLE := PI / 2.0
-
-const RUN_BOB_HEIGHT := 0.05
+# AnimationLibrary_Godot_Standard.glb (see Model below) is a full mannequin
+# rig (53-bone Rigify-style deform skeleton) that ships with its own
+# AnimationPlayer/AnimationLibrary - real baked animations (Idle, Jog_Fwd,
+# Sprint, Jump_Start, Jump, Jump_Land, ...), not the hand-swung bones the
+# old CharacterRigged.glb stick-figure needed. See _update_animation for the
+# state machine that picks between them. The asset's rest pose faces +Z
+# (Godot's convention is -Z as "forward"), so Player.tscn's Model node
+# carries a fixed 180-degree Y rotation to correct for it - otherwise the
+# character visually faces the camera instead of the direction of travel.
 const AIR_STRETCH := Vector3(0.94, 1.1, 0.94)
 const LAND_SQUASH := Vector3(1.16, 0.82, 1.16)
-
-# Subtle idle drift on the hanging arms - keeps them from reading as a
-# perfectly frozen mannequin when standing still. Fades out as the walk
-# swing takes over (see _update_animation) rather than fighting it.
-const IDLE_SWAY_SPEED := 1.6
-const IDLE_SWAY_AMOUNT := 0.06  # radians, ~3.4 degrees - meant to be barely-there
 
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
 @onready var camera: Camera3D = $CameraPivot/SpringArm3D/Camera3D
 @onready var model: Node3D = $Model
-@onready var skeleton: Skeleton3D = $Model/Armature/Skeleton3D
-@onready var left_shoulder: Node3D = $LeftShoulder
+@onready var animation_player: AnimationPlayer = $Model/AnimationPlayer
 @onready var right_shoulder: Node3D = $RightShoulder
-@onready var left_hip: Node3D = $LeftHip
-@onready var right_hip: Node3D = $RightHip
 @onready var throw_point: Marker3D = $RightShoulder/ThrowPoint
 @onready var hat_anchor: Node3D = $HatAnchor
 @onready var health_bar_fill: MeshInstance3D = $HealthBar/Fill
@@ -94,20 +68,12 @@ var _model_base_scale: Vector3 = Vector3.ONE
 var _was_on_floor: bool = true
 var _land_squash_tween: Tween = null
 
-# bone_idx -> Basis, captured once in _ready() - see _bone_world_rotation().
-var _bone_rest_basis: Dictionary = {}
-# bone_idx -> float (radians) - the smoothed, currently-applied swing angle
-# per bone, so the walk cycle eases in/out instead of snapping.
-var _bone_current_angle: Dictionary = {}
-
 var dash_charges_left: int = 1
 var dash_recharge_timer: float = 0.0
 var is_dashing: bool = false
 var dash_timer: float = 0.0
 var dash_dir: Vector3 = Vector3.ZERO
 
-var _anim_time: float = 0.0
-var _idle_time: float = 0.0
 var _is_throwing: bool = false
 var _throw_tween: Tween = null
 
@@ -125,7 +91,6 @@ func _ready() -> void:
 	add_to_group("player")
 	_model_base_position = model.position
 	_model_base_scale = model.scale
-	_setup_skeleton()
 	dash_charges_left = Game.get_dash_charges()
 	_throw_timer = AUTO_THROW_INTERVAL
 	# Half-interval head start so the first extra volley lands between the
@@ -140,52 +105,6 @@ func _ready() -> void:
 	Game.armor_changed.connect(_on_armor_changed_update_bar)
 	_on_health_changed_update_bar(Game.health, Game.max_health)
 	_on_armor_changed_update_bar(Game.armor, Game.max_armor)
-
-## Captures each animated bone's rest orientation (needed by
-## _bone_world_basis below).
-func _setup_skeleton() -> void:
-	for idx in [BONE_ARM_POS_X, BONE_ARM_NEG_X, BONE_LEG_NEG_X, BONE_LEG_POS_X]:
-		_bone_rest_basis[idx] = skeleton.get_bone_global_rest(idx).basis
-
-## Converts a rotation expressed in the character's own world/local space
-## into the correct LOCAL bone-pose rotation for `bone_idx`, using that
-## bone's captured rest orientation. Necessary because this rig's bones
-## don't share one common local-axis convention (an arm bone's local X
-## isn't guaranteed to point the same way a leg bone's local X does), so a
-## plain "rotate around local X" would swing different limbs in different,
-## possibly wrong, directions. Skeleton3D sits directly under Model with
-## no rotation of its own, so "world" here means Model/character-local
-## space, matching how the old simple pivot-node rig's rotation.x worked.
-func _bone_world_basis(bone_idx: int, world_basis: Basis) -> Quaternion:
-	var rest_basis: Basis = _bone_rest_basis.get(bone_idx, Basis.IDENTITY)
-	var pose_basis: Basis = rest_basis.inverse() * world_basis * rest_basis
-	return pose_basis.get_rotation_quaternion()
-
-func _bone_world_rotation(bone_idx: int, world_axis: Vector3, angle: float) -> Quaternion:
-	return _bone_world_basis(bone_idx, Basis(world_axis, angle))
-
-## Smoothly eases bone_idx's swing angle toward target_angle (lerp_angle,
-## same easing style the old rig used) and applies it via
-## _bone_world_rotation so it swings correctly regardless of this bone's
-## particular rest orientation. For legs, which already rest pointing
-## straight down.
-func _apply_bone_swing(bone_idx: int, target_angle: float, world_axis: Vector3, blend: float) -> void:
-	var current: float = lerp_angle(_bone_current_angle.get(bone_idx, 0.0), target_angle, blend)
-	_bone_current_angle[bone_idx] = current
-	skeleton.set_bone_pose_rotation(bone_idx, _bone_world_rotation(bone_idx, world_axis, current))
-
-## Arms need two rotations composed together every frame, not just one:
-## first the constant T-pose -> hanging-down correction (drop_angle, around
-## ARM_DROP_AXIS), then the walk swing on top of THAT already-dropped
-## orientation (around LEG_SWING_AXIS, same axis as legs - once dropped,
-## an arm hangs down just like a leg does, so the same "swing forward/back"
-## axis applies). Composed as world_basis = swing * drop so drop is
-## applied first/innermost.
-func _apply_arm_swing(bone_idx: int, drop_angle: float, target_swing: float, blend: float) -> void:
-	var current: float = lerp_angle(_bone_current_angle.get(bone_idx, 0.0), target_swing, blend)
-	_bone_current_angle[bone_idx] = current
-	var world_basis: Basis = Basis(LEG_SWING_AXIS, current) * Basis(ARM_DROP_AXIS, drop_angle)
-	skeleton.set_bone_pose_rotation(bone_idx, _bone_world_basis(bone_idx, world_basis))
 
 func _on_hat_equipped(hat_id: String) -> void:
 	for c in hat_anchor.get_children():
@@ -267,8 +186,13 @@ func _physics_process(delta: float) -> void:
 	_handle_dash(delta)
 	_handle_movement(delta)
 	_handle_auto_throw(delta)
-	_update_animation(delta)
 	move_and_slide()
+	# Both of these read is_on_floor() - must run after move_and_slide()
+	# (the only thing that actually updates it) and in this order, since
+	# _update_animation's takeoff/landing edge-detection compares
+	# is_on_floor() against _was_on_floor BEFORE _update_landing_squash
+	# overwrites it for next frame.
+	_update_animation(delta)
 	_update_landing_squash()
 
 func take_hit(amount: float) -> void:
@@ -289,49 +213,43 @@ func take_hit(amount: float) -> void:
 func apply_external_velocity(v: Vector3) -> void:
 	velocity += v
 
-# --- Procedural animation ---------------------------------------------------
-# LeftHip/RightHip/LeftShoulder still exist (Player.tscn keeps them as
-# empty pivots so these @onready refs don't fail) but no longer drive any
-# visible mesh - real leg animation now runs on CharacterRigged.glb's own
-# Skeleton3D bones instead (see BONE_*/_apply_bone_swing above).
+# --- Animation state machine -------------------------------------------
+# Drives the mannequin's own baked clips (AnimationLibrary_Godot_Standard.glb)
+# instead of posing bones by hand. Grounded states (Idle/Jog_Fwd/Sprint) are
+# picked every frame from movement/input, so switching between them is
+# always in sync with the latest state. Airborne is a proper 3-phase jump -
+# Jump_Start (one-shot) -> Jump (looping hold, for whatever the actual
+# airtime turns out to be) -> Jump_Land (one-shot recovery) - tracked via
+# _was_on_floor (same floor-transition flag _update_landing_squash below
+# already relies on) so takeoff/landing each fire exactly once. play()'s
+# custom_blend argument crossfades between clips instead of hard-cutting.
+const ANIM_BLEND := 0.15
+
 func _update_animation(delta: float) -> void:
-	_idle_time += delta
 	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
 	var moving: bool = horizontal_speed > 0.4 and is_on_floor() and not is_dashing
-	var target_amp: float = 0.0
-	if moving:
-		var speed_ratio: float = clampf(horizontal_speed / max(Game.get_move_speed(), 1.0), 0.4, 2.0)
-		_anim_time += delta * 9.0 * speed_ratio
-		target_amp = 0.85
+	var sprinting: bool = moving and Input.is_action_pressed("sprint")
+
+	if not is_on_floor():
+		if _was_on_floor:
+			animation_player.play("Jump_Start", ANIM_BLEND)
+		elif animation_player.current_animation == "Jump_Start" and not animation_player.is_playing():
+			animation_player.play("Jump", 0.2)
+	else:
+		if not _was_on_floor:
+			animation_player.play("Jump_Land", 0.1)
+		elif animation_player.current_animation == "Jump_Land" and animation_player.is_playing():
+			pass  # let the landing recovery finish before picking a new state
+		elif sprinting:
+			if animation_player.current_animation != "Sprint":
+				animation_player.play("Sprint", ANIM_BLEND)
+		elif moving:
+			if animation_player.current_animation != "Jog_Fwd":
+				animation_player.play("Jog_Fwd", ANIM_BLEND)
+		elif animation_player.current_animation != "Idle":
+			animation_player.play("Idle", ANIM_BLEND)
+
 	var blend: float = clampf(delta * 12.0, 0.0, 1.0)
-
-	# Legs and arms swing opposite each other on the same side (same
-	# relative pattern and tuned amplitudes the old simple pivot rig used
-	# for left_hip/left_shoulder etc.) - when the -X leg swings forward the
-	# -X arm swings back, and vice versa. (Previously suspected as the
-	# cause of a floor/object-clipping report and disabled - the actual
-	# cause turned out to be a static mesh/skeleton offset mismatch in
-	# Model's own position, unrelated to this and fixed there instead, so
-	# this is back on.)
-	var swing: float = sin(_anim_time) * target_amp
-
-	# Both arms drift the same direction together (unlike the swing above,
-	# which alternates) - reads as a gentle relaxed weight-shift rather than
-	# independent fidgeting. Scaled down by how much the real stride swing
-	# is already contributing, so it adds life at a standstill without
-	# fighting or muddying the walk cycle once that takes over.
-	var idle_sway: float = sin(_idle_time * IDLE_SWAY_SPEED) * IDLE_SWAY_AMOUNT * (1.0 - target_amp)
-
-	_apply_bone_swing(BONE_LEG_NEG_X, swing * 0.7, LEG_SWING_AXIS, blend)
-	_apply_bone_swing(BONE_LEG_POS_X, -swing * 0.7, LEG_SWING_AXIS, blend)
-	_apply_arm_swing(BONE_ARM_NEG_X, ARM_DROP_ANGLE, -swing * 0.6 + idle_sway, blend)
-	_apply_arm_swing(BONE_ARM_POS_X, -ARM_DROP_ANGLE, swing * 0.6 + idle_sway, blend)
-
-	# A small double-bounce bob (2 bounces per stride, one per footfall),
-	# fading in/out with target_amp so the model eases to a dead stop
-	# instead of snapping when you stop moving.
-	var bob: float = absf(sin(_anim_time * 2.0)) * RUN_BOB_HEIGHT * target_amp
-	model.position.y = lerpf(model.position.y, _model_base_position.y + bob, blend)
 
 	# Airborne stretch - skipped while a landing squash tween owns the scale
 	# (see _update_landing_squash below), and skipped while grounded so it
