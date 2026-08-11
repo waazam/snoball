@@ -14,10 +14,12 @@ signal state_changed(new_state: int)
 signal snowball_type_changed(id: String)
 signal upgrades_applied
 signal upgrade_picked(title: String)
+signal coins_changed(coins_collected: int)
 
 enum State { MENU, PLAYING, UPGRADE, PAUSED, GAME_OVER }
 
 const COINS_PER_PROJECTILE := 3
+const EXP_PER_LEVEL := 10  # 1 kill = 1 exp
 
 var state: int = State.MENU
 
@@ -121,6 +123,7 @@ func add_kill() -> void:
 ## collected grants one extra snowball per throw instead.
 func add_coin() -> void:
 	coins_collected += 1
+	emit_signal("coins_changed", coins_collected)
 	var progress: int = coins_collected % COINS_PER_PROJECTILE
 	if progress == 0:
 		upgrade_counts["proj_count"] = upgrade_counts.get("proj_count", 0) + 1
@@ -128,6 +131,17 @@ func add_coin() -> void:
 		emit_signal("upgrade_picked", "+1 Snowball per throw!")
 	else:
 		emit_signal("upgrade_picked", "Coin (%d/%d)" % [progress, COINS_PER_PROJECTILE])
+
+## Level = how many full groups of EXP_PER_LEVEL kills have been racked up
+## this run (1 kill = 1 exp). Purely cosmetic - the HUD's XP bar and the
+## floating level label over the player's head (see Player.gd) both read
+## this, but it doesn't affect any actual stats.
+func get_level() -> int:
+	return kills / EXP_PER_LEVEL
+
+## 0.0-1.0 progress toward the next level, for the HUD's XP bar fill.
+func get_level_progress() -> float:
+	return float(kills % EXP_PER_LEVEL) / float(EXP_PER_LEVEL)
 
 func take_damage(amount: float) -> void:
 	if state != State.PLAYING:

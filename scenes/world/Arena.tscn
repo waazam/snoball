@@ -7,7 +7,10 @@
 [ext_resource type="Script" path="res://scripts/world/SnowCap.gd" id="7"]
 [ext_resource type="Script" path="res://scripts/world/BareTree.gd" id="8"]
 [ext_resource type="Script" path="res://scripts/world/PineCanopy.gd" id="9"]
-[ext_resource type="Script" path="res://scripts/world/BorderForest.gd" id="10"]
+[ext_resource type="Script" path="res://scripts/world/BillboardForest.gd" id="12"]
+[ext_resource type="Script" path="res://scripts/world/MountainRange.gd" id="13"]
+[ext_resource type="Script" path="res://scripts/world/CloudLayer.gd" id="14"]
+[ext_resource type="Script" path="res://scripts/world/MapFiller.gd" id="15"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 sky_top_color = Color(0.16, 0.11, 0.26, 1)
@@ -26,14 +29,14 @@ sky = SubResource("Sky_main")
 ambient_light_energy = 1.0
 fog_enabled = true
 fog_light_color = Color(0.95, 0.55, 0.32, 1)
-fog_density = 0.012
+fog_density = 0.008
 fog_sky_affect = 0.45
 
 [sub_resource type="BoxMesh" id="BoxMesh_ground"]
-size = Vector3(80, 1, 80)
+size = Vector3(200, 1, 200)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
-size = Vector3(80, 1, 80)
+size = Vector3(200, 4, 200)
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_snowAlbedo"]
 seed = 42
@@ -77,10 +80,10 @@ uv1_scale = Vector3(18, 18, 1)
 roughness = 0.85
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_wallNS"]
-size = Vector3(82, 4, 1)
+size = Vector3(202, 4, 1)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_wallEW"]
-size = Vector3(1, 4, 80)
+size = Vector3(1, 4, 200)
 
 [sub_resource type="BoxMesh" id="BoxMesh_crate"]
 size = Vector3(1.6, 1.6, 1.6)
@@ -218,7 +221,7 @@ roughness = 0.85
 
 [sub_resource type="ParticleProcessMaterial" id="PPM_snow"]
 emission_shape = 3
-emission_box_extents = Vector3(42, 3, 42)
+emission_box_extents = Vector3(102, 3, 102)
 direction = Vector3(0, -1, 0)
 spread = 10.0
 gravity = Vector3(0, -1.4, 0)
@@ -271,6 +274,15 @@ environment = SubResource("Environment_main")
 [node name="LowPolySky" type="MeshInstance3D" parent="."]
 script = ExtResource("2")
 
+[node name="MountainRange" type="MeshInstance3D" parent="."]
+script = ExtResource("13")
+
+[node name="CloudLayer" type="Node3D" parent="."]
+script = ExtResource("14")
+
+[node name="BillboardForest" type="MultiMeshInstance3D" parent="."]
+script = ExtResource("12")
+
 [node name="Sun" type="DirectionalLight3D" parent="."]
 position = Vector3(0, 15, 0)
 rotation_degrees = Vector3(-15, -35, 0)
@@ -287,38 +299,34 @@ mesh = SubResource("BoxMesh_ground")
 surface_material_override/0 = SubResource("StdMat_snowGround")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+position = Vector3(0, -1.5, 0)
 shape = SubResource("BoxShape3D_ground")
 
 [node name="Walls" type="Node3D" parent="."]
 
 [node name="WallNorth" type="StaticBody3D" parent="Walls"]
-position = Vector3(0, 2, -40)
+position = Vector3(0, 2, -100)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Walls/WallNorth"]
 shape = SubResource("BoxShape3D_wallNS")
 
 [node name="WallSouth" type="StaticBody3D" parent="Walls"]
-position = Vector3(0, 2, 40)
+position = Vector3(0, 2, 100)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Walls/WallSouth"]
 shape = SubResource("BoxShape3D_wallNS")
 
 [node name="WallEast" type="StaticBody3D" parent="Walls"]
-position = Vector3(40, 2, 0)
+position = Vector3(100, 2, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Walls/WallEast"]
 shape = SubResource("BoxShape3D_wallEW")
 
 [node name="WallWest" type="StaticBody3D" parent="Walls"]
-position = Vector3(-40, 2, 0)
+position = Vector3(-100, 2, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Walls/WallWest"]
 shape = SubResource("BoxShape3D_wallEW")
-
-[node name="BorderForest" type="Node3D" parent="."]
-script = ExtResource("10")
-trunk_material = SubResource("StdMat_trunk")
-canopy_material = SubResource("StdMat_canopy")
 
 [node name="Obstacles" type="Node3D" parent="."]
 
@@ -664,7 +672,7 @@ shape = SubResource("BoxShape3D_rampB")
 [node name="Trees" type="Node3D" parent="."]
 
 [node name="Tree1" type="Node3D" parent="Trees"]
-position = Vector3(35, 0, 0)
+position = Vector3(87.5, 0, 0)
 
 [node name="Branches" type="Node3D" parent="Trees/Tree1"]
 script = ExtResource("6")
@@ -695,7 +703,7 @@ bulb_radius = 0.1
 wrap_clearance = 1.08
 
 [node name="Tree2" type="Node3D" parent="Trees"]
-position = Vector3(28.3, 0, 20.6)
+position = Vector3(70.75, 0, 51.5)
 
 [node name="Branches" type="Node3D" parent="Trees/Tree2"]
 script = ExtResource("6")
@@ -726,7 +734,7 @@ bulb_radius = 0.1
 wrap_clearance = 1.08
 
 [node name="Tree3" type="Node3D" parent="Trees"]
-position = Vector3(10.8, 0, 33.3)
+position = Vector3(27.0, 0, 83.25)
 
 [node name="Branches" type="Node3D" parent="Trees/Tree3"]
 script = ExtResource("6")
@@ -757,7 +765,7 @@ bulb_radius = 0.1
 wrap_clearance = 1.08
 
 [node name="Tree4" type="Node3D" parent="Trees"]
-position = Vector3(-10.8, 0, 33.3)
+position = Vector3(-27.0, 0, 83.25)
 
 [node name="Branches" type="Node3D" parent="Trees/Tree4"]
 script = ExtResource("6")
@@ -788,7 +796,7 @@ bulb_radius = 0.1
 wrap_clearance = 1.08
 
 [node name="Tree5" type="Node3D" parent="Trees"]
-position = Vector3(-28.3, 0, 20.6)
+position = Vector3(-70.75, 0, 51.5)
 
 [node name="Branches" type="Node3D" parent="Trees/Tree5"]
 script = ExtResource("6")
@@ -819,7 +827,7 @@ bulb_radius = 0.1
 wrap_clearance = 1.08
 
 [node name="Tree6" type="Node3D" parent="Trees"]
-position = Vector3(-35, 0, 0)
+position = Vector3(-87.5, 0, 0)
 
 [node name="Branches" type="Node3D" parent="Trees/Tree6"]
 script = ExtResource("6")
@@ -850,7 +858,7 @@ bulb_radius = 0.1
 wrap_clearance = 1.08
 
 [node name="Tree7" type="Node3D" parent="Trees"]
-position = Vector3(-28.3, 0, -20.6)
+position = Vector3(-70.75, 0, -51.5)
 
 [node name="Branches" type="Node3D" parent="Trees/Tree7"]
 script = ExtResource("6")
@@ -881,7 +889,7 @@ bulb_radius = 0.1
 wrap_clearance = 1.08
 
 [node name="Tree8" type="Node3D" parent="Trees"]
-position = Vector3(-10.8, 0, -33.3)
+position = Vector3(-27.0, 0, -83.25)
 
 [node name="Branches" type="Node3D" parent="Trees/Tree8"]
 script = ExtResource("6")
@@ -912,7 +920,7 @@ bulb_radius = 0.1
 wrap_clearance = 1.08
 
 [node name="Tree9" type="Node3D" parent="Trees"]
-position = Vector3(10.8, 0, -33.3)
+position = Vector3(27.0, 0, -83.25)
 
 [node name="Branches" type="Node3D" parent="Trees/Tree9"]
 script = ExtResource("6")
@@ -943,7 +951,7 @@ bulb_radius = 0.1
 wrap_clearance = 1.08
 
 [node name="Tree10" type="Node3D" parent="Trees"]
-position = Vector3(28.3, 0, -20.6)
+position = Vector3(70.75, 0, -51.5)
 
 [node name="Branches" type="Node3D" parent="Trees/Tree10"]
 script = ExtResource("6")
@@ -974,19 +982,19 @@ bulb_radius = 0.1
 wrap_clearance = 1.08
 
 [node name="BareTree1" type="Node3D" parent="Trees"]
-position = Vector3(28.5, 0, 9.27)
+position = Vector3(71.25, 0, 23.175)
 script = ExtResource("8")
 
 [node name="BareTree2" type="Node3D" parent="Trees"]
-position = Vector3(-17.6, 0, 24.3)
+position = Vector3(-44.0, 0, 60.75)
 script = ExtResource("8")
 
 [node name="BareTree3" type="Node3D" parent="Trees"]
-position = Vector3(-28.5, 0, -9.27)
+position = Vector3(-71.25, 0, -23.175)
 script = ExtResource("8")
 
 [node name="BareTree4" type="Node3D" parent="Trees"]
-position = Vector3(-9.27, 0, -28.5)
+position = Vector3(-23.175, 0, -71.25)
 script = ExtResource("8")
 
 [node name="Snowfall" type="GPUParticles3D" parent="."]
@@ -1023,6 +1031,13 @@ position = Vector3(22, 1, -22)
 
 [node name="PlayerSpawn" type="Marker3D" parent="."]
 position = Vector3(0, 1, 32)
+
+[node name="MapFiller" type="Node3D" parent="."]
+script = ExtResource("15")
+trunk_material = SubResource("StdMat_trunk")
+canopy_material = SubResource("StdMat_canopy")
+rock_material = SubResource("StdMat_rock")
+platform_material = SubResource("StdMat_platform")
 
 [node name="WaveManager" type="Node3D" parent="."]
 script = ExtResource("1")
