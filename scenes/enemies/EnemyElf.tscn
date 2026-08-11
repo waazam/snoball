@@ -36,6 +36,13 @@ height = 0.3
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_skin"]
 albedo_color = Color(0.85, 0.7, 0.6, 1)
 
+[sub_resource type="SphereMesh" id="SphereMesh_eye"]
+radius = 0.025
+height = 0.05
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_eye"]
+albedo_color = Color(0.08, 0.08, 0.09, 1)
+
 [sub_resource type="CylinderMesh" id="CylinderMesh_ear"]
 top_radius = 0.0
 bottom_radius = 0.05
@@ -130,6 +137,16 @@ surface_material_override/0 = SubResource("StandardMaterial3D_belt")
 position = Vector3(0, 1.24, 0)
 mesh = SubResource("SphereMesh_head")
 surface_material_override/0 = SubResource("StandardMaterial3D_skin")
+
+[node name="EyeLeft" type="MeshInstance3D" parent="."]
+position = Vector3(-0.055, 1.27, -0.15)
+mesh = SubResource("SphereMesh_eye")
+surface_material_override/0 = SubResource("StandardMaterial3D_eye")
+
+[node name="EyeRight" type="MeshInstance3D" parent="."]
+position = Vector3(0.055, 1.27, -0.15)
+mesh = SubResource("SphereMesh_eye")
+surface_material_override/0 = SubResource("StandardMaterial3D_eye")
 
 [node name="EarLeft" type="MeshInstance3D" parent="."]
 position = Vector3(-0.14, 1.24, 0.02)

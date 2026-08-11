@@ -34,9 +34,15 @@ func _on_body_entered(body: Node) -> void:
 	if _collected or Game.state != Game.State.PLAYING or not body.is_in_group("player"):
 		return
 	_collected = true
-	monitoring = false
+	# Deferred: this handler runs during the physics engine's collision pass
+	# (it's connected to this same Area3D's body_entered), and toggling
+	# monitoring synchronously mid-pass is explicitly disallowed by Godot.
+	set_deferred("monitoring", false)
 	Game.equip_snowball(snowball_type_id)
 	Game.emit_signal("upgrade_picked", "%s equipped!" % SnowballDB.get_display_name(snowball_type_id))
 	var tw := create_tween()
-	tw.tween_property(self, "scale", Vector3.ZERO, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	# A hair above zero, not Vector3.ZERO - an exactly-zero scale makes the
+	# physics engine's transform matrix singular (non-invertible), which
+	# Jolt logs as an error and has to paper over every frame of the tween.
+	tw.tween_property(self, "scale", Vector3.ONE * 0.001, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	tw.tween_callback(queue_free)

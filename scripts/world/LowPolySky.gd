@@ -4,10 +4,10 @@ extends MeshInstance3D
 ## game's fully-procedural low-poly look (see HatVisuals.gd for the same
 ## approach applied to hats).
 ##
-## The palette is hand-sampled from a splatter-painting reference: a warm
-## cream canvas near the horizon, cornflower blue rising to a deep navy
-## zenith, with scattered blush-pink, red, gold and charcoal "paint fleck"
-## facets standing in for the painting's spatter.
+## Sunset palette: a hot gold/orange band right at the horizon, burning
+## down through red-orange and dusky plum as it rises, into a deep indigo
+## zenith - with scattered blush-pink, red, gold and charcoal "paint fleck"
+## facets standing in for clouds catching the last warm light.
 
 const RADIUS := 260.0
 const RINGS := 7
@@ -15,18 +15,18 @@ const SEGMENTS := 16
 const SPLATTER_CHANCE := 0.1
 const SPLATTER_MIX := 0.65
 
-# Colors lifted from the reference painting.
-const CREAM_LIGHT := Color(0.93, 0.88, 0.75)
-const CREAM_BASE := Color(0.85, 0.78, 0.62)
-const PERIWINKLE := Color(0.5, 0.58, 0.85)
-const SKY_BLUE := Color(0.32, 0.46, 0.82)
-const SKY_BLUE_DEEP := Color(0.18, 0.26, 0.58)
-const BLUSH_PINK := Color(0.85, 0.55, 0.55)
-const RED_ACCENT := Color(0.78, 0.16, 0.22)
-const GOLD_ACCENT := Color(0.75, 0.58, 0.25)
+# Sunset gradient, horizon (t=0) to zenith (t=1).
+const HORIZON_GOLD := Color(0.98, 0.62, 0.28)
+const SUNSET_ORANGE := Color(0.9, 0.42, 0.24)
+const DUSK_PLUM := Color(0.55, 0.28, 0.4)
+const TWILIGHT_PURPLE := Color(0.3, 0.22, 0.46)
+const NIGHT_INDIGO := Color(0.14, 0.11, 0.28)
+const BLUSH_PINK := Color(0.92, 0.6, 0.55)
+const RED_ACCENT := Color(0.82, 0.22, 0.2)
+const GOLD_ACCENT := Color(0.92, 0.68, 0.3)
 const CHARCOAL := Color(0.12, 0.12, 0.13)
 
-const SPLATTER_COLORS := [RED_ACCENT, GOLD_ACCENT, BLUSH_PINK, CHARCOAL, SKY_BLUE_DEEP]
+const SPLATTER_COLORS := [RED_ACCENT, GOLD_ACCENT, BLUSH_PINK, CHARCOAL, TWILIGHT_PURPLE]
 
 func _ready() -> void:
 	mesh = _build_dome()
@@ -41,14 +41,14 @@ func _ready() -> void:
 # --- Palette -----------------------------------------------------------
 ## t: 0 at the horizon, 1 at the zenith.
 func _gradient_color(t: float) -> Color:
-	if t < 0.25:
-		return CREAM_LIGHT.lerp(CREAM_BASE, t / 0.25)
-	elif t < 0.55:
-		return CREAM_BASE.lerp(PERIWINKLE, (t - 0.25) / 0.3)
-	elif t < 0.8:
-		return PERIWINKLE.lerp(SKY_BLUE, (t - 0.55) / 0.25)
+	if t < 0.2:
+		return HORIZON_GOLD.lerp(SUNSET_ORANGE, t / 0.2)
+	elif t < 0.45:
+		return SUNSET_ORANGE.lerp(DUSK_PLUM, (t - 0.2) / 0.25)
+	elif t < 0.75:
+		return DUSK_PLUM.lerp(TWILIGHT_PURPLE, (t - 0.45) / 0.3)
 	else:
-		return SKY_BLUE.lerp(SKY_BLUE_DEEP, (t - 0.8) / 0.2)
+		return TWILIGHT_PURPLE.lerp(NIGHT_INDIGO, (t - 0.75) / 0.25)
 
 func _face_color(t: float) -> Color:
 	var base: Color = _gradient_color(t)
