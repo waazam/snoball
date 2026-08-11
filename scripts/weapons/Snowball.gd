@@ -98,7 +98,7 @@ func _start_flight_sound() -> void:
 	if effect_kind == "silent":
 		return
 	_whoosh_player = AudioStreamPlayer3D.new()
-	_whoosh_player.stream = SoundFX.get_bottle_rocket_whistle() if type_id == "standard" else SoundFX.get_whoosh()
+	_whoosh_player.stream = SoundFX.get_woof() if type_id == "standard" else SoundFX.get_whoosh()
 	_whoosh_player.volume_db = -8.0
 	_whoosh_player.max_distance = 30.0
 	add_child(_whoosh_player)
@@ -236,7 +236,7 @@ func _play_impact_sound() -> void:
 	if type_id == "death_ball":
 		stream = SoundFX.get_implosion()
 	elif type_id == "standard":
-		stream = SoundFX.get_bottle_rocket_pop()
+		stream = SoundFX.get_poof()
 	else:
 		stream = SoundFX.get_splat()
 	var player := AudioStreamPlayer3D.new()
