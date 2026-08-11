@@ -5,52 +5,52 @@ extends Node
 const STATS := {
 	"grunt": {
 		"display_name": "Reindeer",
-		"health": 30.0,
+		"health": 40.0,
 		"speed": 3.6,
-		"damage": 8.0,
+		"damage": 10.0,
 		"attack_range": 1.7,
 		"attack_cooldown": 1.0,
 		"is_ranged": false,
-		"scale": 1.0,
+		"scale": 1.15,
 		"color": Color(0.62, 0.42, 0.25),
 		"scene_path": "res://scenes/enemies/EnemyReindeer.tscn",
 		"score": 10,
 	},
 	"thrower": {
 		"display_name": "Rogue Elf",
-		"health": 22.0,
+		"health": 28.0,
 		"speed": 3.1,
-		"damage": 6.0,
+		"damage": 8.0,
 		"attack_range": 7.0,
 		"attack_cooldown": 1.6,
 		"is_ranged": true,
-		"scale": 0.9,
+		"scale": 1.0,
 		"color": Color(0.45, 0.12, 0.5),
 		"scene_path": "res://scenes/enemies/EnemyElf.tscn",
 		"score": 15,
 	},
 	"brute": {
 		"display_name": "Elder Reindeer",
-		"health": 95.0,
+		"health": 130.0,
 		"speed": 2.3,
-		"damage": 18.0,
+		"damage": 24.0,
 		"attack_range": 2.2,
 		"attack_cooldown": 1.3,
 		"is_ranged": false,
-		"scale": 1.5,
+		"scale": 1.8,
 		"color": Color(0.32, 0.22, 0.14),
 		"scene_path": "res://scenes/enemies/EnemyReindeer.tscn",
 		"score": 30,
 	},
 	"snowman": {
 		"display_name": "Snowman Boss",
-		"health": 300.0,
+		"health": 380.0,
 		"speed": 2.0,
-		"damage": 10.0,
+		"damage": 13.0,
 		"attack_range": 8.0,
 		"attack_cooldown": 1.4,
 		"is_ranged": true,
-		"scale": 1.6,
+		"scale": 2.0,
 		"color": Color(0.95, 0.97, 1.0),
 		"scene_path": "res://scenes/enemies/EnemySnowman.tscn",
 		"score": 100,
@@ -68,23 +68,23 @@ func get_scene_path(id: String) -> String:
 func get_scaled_stats(id: String, wave: int) -> Dictionary:
 	var s := get_stats(id)
 	var w: int = maxi(0, wave - 1)
-	s["health"] = s["health"] * (1.0 + w * 0.2)
-	s["damage"] = s["damage"] * (1.0 + w * 0.14)
-	s["speed"] = s["speed"] * (1.0 + minf(w * 0.06, 1.0))
+	s["health"] = s["health"] * (1.0 + w * 0.25)
+	s["damage"] = s["damage"] * (1.0 + w * 0.18)
+	s["speed"] = s["speed"] * (1.0 + minf(w * 0.08, 1.2))
 	return s
 
 ## Returns an Array[String] of enemy ids to spawn for the given wave.
 func get_wave_composition(wave: int) -> Array:
 	var comp: Array = []
-	var grunts: int = 4 + wave * 2
+	var grunts: int = 6 + wave * 3
 	for i in grunts:
 		comp.append("grunt")
 	if wave >= 2:
-		var throwers: int = 1 + wave
+		var throwers: int = 2 + wave * 2
 		for i in throwers:
 			comp.append("thrower")
 	if wave >= 3:
-		var brutes: int = 1 + int(wave / 2)
+		var brutes: int = 2 + wave
 		for i in brutes:
 			comp.append("brute")
 	# Boss wave: a single high-health Snowman, every odd wave from 3 onward

@@ -152,6 +152,68 @@ horizontal_alignment = 1
 vertical_alignment = 1
 text = "+"
 
+[node name="XPBar" type="Control" parent="Root"]
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = -320.0
+offset_top = -36.0
+offset_right = 320.0
+offset_bottom = -12.0
+mouse_filter = 2
+
+[node name="BG" type="ColorRect" parent="Root/XPBar"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.05, 0.05, 0.75)
+
+[node name="Fill" type="ColorRect" parent="Root/XPBar"]
+anchor_bottom = 1.0
+color = Color(0.35, 0.8, 1, 1)
+
+[node name="LevelLabel" type="Label" parent="Root/XPBar"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "LV 0"
+
+[node name="CoinsBar" type="Control" parent="Root"]
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = -320.0
+offset_top = -60.0
+offset_right = 320.0
+offset_bottom = -40.0
+mouse_filter = 2
+
+[node name="BG" type="ColorRect" parent="Root/CoinsBar"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.05, 0.05, 0.75)
+
+[node name="Fill" type="ColorRect" parent="Root/CoinsBar"]
+anchor_bottom = 1.0
+color = Color(1, 0.85, 0.2, 1)
+
+[node name="CoinsLabel" type="Label" parent="Root/CoinsBar"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 3
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "Coins: 0"
+
 [node name="PauseOverlay" type="ColorRect" parent="Root"]
 anchor_right = 1.0
 anchor_bottom = 1.0

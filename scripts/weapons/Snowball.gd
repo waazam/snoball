@@ -32,7 +32,6 @@ var effect_data: Dictionary = {}
 
 var _color: Color = Color.WHITE
 var _visual_root: Node3D
-var _whoosh_player: AudioStreamPlayer3D
 var _pulse_time: float = 0.0
 
 var _hit_bodies: Array = []
@@ -82,7 +81,6 @@ func setup(p_direction: Vector3, p_stats: Dictionary, p_is_player_owned: bool, p
 		effect_kind = data.get("effect", "none")
 		effect_data = data
 	_build_visual()
-	_start_flight_sound()
 
 ## Replaces whatever's there with a fresh procedural mesh matching this
 ## snowball's shape (SnowballDB.get_shape) - enemy throws and cluster
@@ -93,16 +91,6 @@ func _build_visual() -> void:
 	var shape: String = SnowballDB.get_shape(type_id) if (is_player_owned and not is_cluster_shard) else "standard"
 	_visual_root = SnowballVisuals.build(shape, _color)
 	add_child(_visual_root)
-
-func _start_flight_sound() -> void:
-	if effect_kind == "silent":
-		return
-	_whoosh_player = AudioStreamPlayer3D.new()
-	_whoosh_player.stream = SoundFX.get_woof() if type_id == "standard" else SoundFX.get_whoosh()
-	_whoosh_player.volume_db = -8.0
-	_whoosh_player.max_distance = 30.0
-	add_child(_whoosh_player)
-	_whoosh_player.play()
 
 func _physics_process(delta: float) -> void:
 	if _dead or Game.state != Game.State.PLAYING:
@@ -224,25 +212,4 @@ func _die() -> void:
 	if _dead:
 		return
 	_dead = true
-	_play_impact_sound()
 	queue_free()
-
-## Independent of this node's own lifecycle (which ends this frame) so the
-## splat isn't cut off mid-playback by queue_free().
-func _play_impact_sound() -> void:
-	if effect_kind == "silent":
-		return
-	var stream: AudioStreamWAV
-	if type_id == "death_ball":
-		stream = SoundFX.get_implosion()
-	elif type_id == "standard":
-		stream = SoundFX.get_poof()
-	else:
-		stream = SoundFX.get_splat()
-	var player := AudioStreamPlayer3D.new()
-	player.stream = stream
-	player.max_distance = 30.0
-	get_tree().current_scene.add_child(player)
-	player.global_position = global_position
-	player.finished.connect(player.queue_free)
-	player.play()

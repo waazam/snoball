@@ -11,6 +11,10 @@ extends CanvasLayer
 @onready var pause_overlay: Control = $Root/PauseOverlay
 @onready var toast_label: Label = $Root/ToastLabel
 @onready var stats_list: VBoxContainer = $Root/StatsPanel/StatsList
+@onready var xp_fill: ColorRect = $Root/XPBar/Fill
+@onready var xp_level_label: Label = $Root/XPBar/LevelLabel
+@onready var coins_fill: ColorRect = $Root/CoinsBar/Fill
+@onready var coins_label: Label = $Root/CoinsBar/CoinsLabel
 
 const ARMOR_COLOR := Color(0.55, 0.6, 0.68)
 const STAT_FONT_SIZE := 15
@@ -29,11 +33,14 @@ func _ready() -> void:
 	# the stats panel, since either can grant a stat boost.
 	Game.upgrades_applied.connect(_refresh_stats)
 	Game.hat_equipped.connect(func(_id: String) -> void: _refresh_stats())
+	Game.coins_changed.connect(_on_coins_changed)
 	_on_health_changed(Game.health, Game.max_health)
 	_on_armor_changed(Game.armor, Game.max_armor)
 	_on_wave_changed(Game.wave)
 	_on_kills_changed(Game.kills)
 	_on_snowball_type_changed(Game.current_snowball_type)
+	_on_coins_changed(Game.coins_collected)
+	_update_xp_bar()
 	_refresh_stats()
 	pause_overlay.visible = false
 	toast_label.visible = false
@@ -64,10 +71,27 @@ func _on_wave_changed(wave: int) -> void:
 
 func _on_kills_changed(kills: int) -> void:
 	kills_label.text = "Kills: %d" % kills
+	_update_xp_bar()
 
 func _on_snowball_type_changed(id: String) -> void:
 	ball_icon.fill_color = SnowballDB.get_color(id)
 	weapon_name_label.text = SnowballDB.get_display_name(id)
+
+## Kill-driven "level" - purely cosmetic (see Game.get_level/
+## get_level_progress), doesn't touch any stats. Every EXP_PER_LEVEL kills
+## fills the bar and bumps the level shown - also mirrored above the
+## player's own head, see Player.gd's level label.
+func _update_xp_bar() -> void:
+	xp_fill.anchor_right = Game.get_level_progress()
+	xp_level_label.text = "LV %d" % Game.get_level()
+
+## Just a running total + progress toward the next proj_count upgrade
+## (every COINS_PER_PROJECTILE coins, see Game.add_coin()) - not tied to
+## the kill-driven level/XP bar above.
+func _on_coins_changed(coins_collected: int) -> void:
+	var progress: int = coins_collected % Game.COINS_PER_PROJECTILE
+	coins_fill.anchor_right = float(progress) / float(Game.COINS_PER_PROJECTILE)
+	coins_label.text = "Coins: %d" % coins_collected
 
 func _on_upgrade_picked(title: String) -> void:
 	toast_label.text = "Acquired: %s" % title
@@ -76,9 +100,9 @@ func _on_upgrade_picked(title: String) -> void:
 
 func set_paused(paused: bool) -> void:
 	pause_overlay.visible = paused
-	# The game has no separate SFX/music buses (see SoundFX.gd) - everything
-	# plays on Master, so muting that one bus silences all game sound while
-	# paused without touching individual AudioStreamPlayers.
+	# The game has no separate SFX/music buses - the background track (see
+	# Music.gd) plays on Master like everything else, so muting that one bus
+	# silences it while paused without touching the AudioStreamPlayer directly.
 	AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"), paused)
 
 ## Rebuilds the "active power-ups" list from every stacking upgrade counter,

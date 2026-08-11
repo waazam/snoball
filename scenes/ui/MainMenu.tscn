@@ -26,18 +26,6 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 horizontal_alignment = 1
 text = "Snowball Siege"
 
-[node name="Subtitle" type="Label" parent="Root"]
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -400.0
-offset_top = 220.0
-offset_right = 400.0
-offset_bottom = 254.0
-theme_override_font_sizes/font_size = 20
-theme_override_colors/font_color = Color(0.95, 0.98, 1, 1)
-horizontal_alignment = 1
-text = "A 3D Roguelike Snowball Fight"
-
 [node name="StartButton" type="Button" parent="Root"]
 anchor_left = 0.5
 anchor_right = 0.5
@@ -58,16 +46,18 @@ offset_bottom = 496.0
 theme_override_font_sizes/font_size = 20
 text = "Quit"
 
-[node name="Controls" type="Label" parent="Root"]
+[node name="EasterEgg" type="Label" parent="Root"]
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -400.0
-offset_top = 560.0
-offset_right = 400.0
-offset_bottom = 720.0
-theme_override_font_sizes/font_size = 16
-theme_override_colors/font_color = Color(1, 1, 1, 0.9)
+anchor_bottom = 1.0
+offset_left = -500.0
+offset_top = -160.0
+offset_right = 500.0
+offset_bottom = -20.0
+theme_override_font_sizes/font_size = 52
+theme_override_colors/font_color = Color(0.95, 0.1, 0.1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
 horizontal_alignment = 1
-text = "WASD move   •   Mouse look/aim   •   Space jump   •   Left Click throw
-Shift sprint   •   Q dash (once unlocked)   •   1-6 / Scroll switch snowball
-Clear waves to pick roguelike upgrades. Survive as long as you can!"
+vertical_alignment = 2
+autowrap_mode = 2

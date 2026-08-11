@@ -219,10 +219,9 @@ func _detonate() -> void:
 	_spawn_explosion_fx()
 	_die()
 
-## A quick expanding, fading white puff plus the shared "implosion" boom
-## (see SoundFX.gd) - independent of this node (added to current_scene,
-## own tween) so it finishes playing even though the snowman itself is
-## about to be freed by _die()'s shrink tween.
+## A quick expanding, fading white puff - independent of this node (added
+## to current_scene, own tween) so it finishes playing even though the
+## snowman itself is about to be freed by _die()'s shrink tween.
 func _spawn_explosion_fx() -> void:
 	var mesh := SphereMesh.new()
 	mesh.radius = 1.0
@@ -245,10 +244,3 @@ func _spawn_explosion_fx() -> void:
 	tw.tween_property(mi, "scale", Vector3.ONE * EXPLOSION_RADIUS, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_property(mat, "albedo_color:a", 0.0, 0.35)
 	tw.chain().tween_callback(mi.queue_free)
-
-	var snd := AudioStreamPlayer3D.new()
-	snd.stream = SoundFX.get_implosion()
-	get_tree().current_scene.add_child(snd)
-	snd.global_position = global_position
-	snd.finished.connect(snd.queue_free)
-	snd.play()

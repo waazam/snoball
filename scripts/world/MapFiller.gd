@@ -1,0 +1,146 @@
+extends Node3D
+## Extra scatter of full-size, walkable/collidable trees, boulders, and a
+## few platform+ramp pairs across the enlarged map's outer ring - the area
+## between the original hand-placed combat cluster near spawn and the much
+## farther-out walls (+-120), which would otherwise be bare open snow.
+## Same "everything built in code" approach as BillboardForest.gd/
+## PineCanopy.gd/BorderForest.gd, just walkable-scale content instead of a
+## background backdrop.
+
+const PINE_CANOPY_SCRIPT := preload("res://scripts/world/PineCanopy.gd")
+
+const INNER_RADIUS := 32.0  # stays clear of the hand-placed obstacle cluster near spawn
+const OUTER_RADIUS := 94.0  # stays inside the walls (+-100)
+const TREE_COUNT := 65
+const ROCK_COUNT := 65
+const PLATFORM_COUNT := 12
+
+@export var trunk_material: Material
+@export var canopy_material: Material
+@export var rock_material: Material
+@export var platform_material: Material
+
+func _ready() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1234
+	for i in TREE_COUNT:
+		_spawn_tree(rng)
+	for i in ROCK_COUNT:
+		_spawn_rock(rng)
+	for i in PLATFORM_COUNT:
+		_spawn_platform(rng)
+
+func _random_point(rng: RandomNumberGenerator) -> Vector3:
+	var angle: float = rng.randf() * TAU
+	# sqrt bias so points don't bunch up near the inner edge - even density
+	# across the ring's actual area, not just its radius.
+	var radius: float = lerpf(INNER_RADIUS, OUTER_RADIUS, sqrt(rng.randf()))
+	return Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
+
+## Same trunk-cylinder + PineCanopy.gd combo Arena.tscn's hand-placed
+## Tree1-10 use, minus the Christmas lights (these are background fill,
+## not the decorated centerpiece trees).
+func _spawn_tree(rng: RandomNumberGenerator) -> void:
+	var tree := Node3D.new()
+	tree.position = _random_point(rng)
+	tree.rotation.y = rng.randf() * TAU
+	var s: float = rng.randf_range(0.85, 1.25)
+	tree.scale = Vector3(s, s, s)
+	add_child(tree)
+
+	var trunk_mesh := CylinderMesh.new()
+	trunk_mesh.top_radius = 0.15
+	trunk_mesh.bottom_radius = 0.2
+	trunk_mesh.height = 2.0
+	trunk_mesh.radial_segments = 10
+	var trunk_body := StaticBody3D.new()
+	trunk_body.position = Vector3(0, 1, 0)
+	tree.add_child(trunk_body)
+	var trunk_mi := MeshInstance3D.new()
+	trunk_mi.mesh = trunk_mesh
+	if trunk_material:
+		trunk_mi.material_override = trunk_material
+	trunk_body.add_child(trunk_mi)
+	var trunk_shape := CylinderShape3D.new()
+	trunk_shape.radius = 0.2
+	trunk_shape.height = 2.0
+	var trunk_cs := CollisionShape3D.new()
+	trunk_cs.shape = trunk_shape
+	trunk_body.add_child(trunk_cs)
+
+	var canopy := Node3D.new()
+	canopy.set_script(PINE_CANOPY_SCRIPT)
+	canopy.canopy_material = canopy_material
+	canopy.position = Vector3(0, 3.0, 0)
+	tree.add_child(canopy)
+
+func _spawn_rock(rng: RandomNumberGenerator) -> void:
+	var rock := StaticBody3D.new()
+	var s: float = rng.randf_range(0.7, 2.0)
+	var pos: Vector3 = _random_point(rng)
+	pos.y = s
+	rock.position = pos
+	rock.scale = Vector3(s, s, s)
+	add_child(rock)
+
+	var mesh := SphereMesh.new()
+	mesh.radius = 1.0
+	mesh.height = 2.0
+	mesh.radial_segments = 8
+	mesh.rings = 6
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	if rock_material:
+		mi.material_override = rock_material
+	rock.add_child(mi)
+
+	var shape := SphereShape3D.new()
+	shape.radius = 1.0
+	var cs := CollisionShape3D.new()
+	cs.shape = shape
+	rock.add_child(cs)
+
+## A boxy platform plus an angled ramp leading up to it, same shapes
+## Terrain/PlatformA-B/RampA-B already use, just scattered with random
+## size/position instead of hand-placed.
+func _spawn_platform(rng: RandomNumberGenerator) -> void:
+	var pos: Vector3 = _random_point(rng)
+	var width: float = rng.randf_range(5.0, 8.0)
+	var height: float = rng.randf_range(1.4, 2.4)
+	var facing: float = rng.randf() * TAU
+
+	var platform := StaticBody3D.new()
+	platform.position = pos + Vector3(0, height * 0.5, 0)
+	add_child(platform)
+	var p_mesh := BoxMesh.new()
+	p_mesh.size = Vector3(width, height, width)
+	var p_mi := MeshInstance3D.new()
+	p_mi.mesh = p_mesh
+	if platform_material:
+		p_mi.material_override = platform_material
+	platform.add_child(p_mi)
+	var p_shape := BoxShape3D.new()
+	p_shape.size = p_mesh.size
+	var p_cs := CollisionShape3D.new()
+	p_cs.shape = p_shape
+	platform.add_child(p_cs)
+
+	var ramp_len: float = height / sin(deg_to_rad(20.0))
+	var ramp_dir := Vector3(sin(facing), 0, cos(facing))
+	var ramp := StaticBody3D.new()
+	ramp.position = pos + Vector3(0, height * 0.5, 0) + ramp_dir * (width * 0.5 + ramp_len * 0.5 * cos(deg_to_rad(20.0)))
+	ramp.rotation.y = facing
+	ramp.rotation.x = deg_to_rad(20.0)
+	add_child(ramp)
+	var r_mesh := BoxMesh.new()
+	r_mesh.size = Vector3(width * 0.55, 0.4, ramp_len)
+	var r_mi := MeshInstance3D.new()
+	r_mi.mesh = r_mesh
+	if platform_material:
+		r_mi.material_override = platform_material
+	ramp.add_child(r_mi)
+	var r_shape := BoxShape3D.new()
+	r_shape.size = r_mesh.size
+	var r_cs := CollisionShape3D.new()
+	r_cs.shape = r_shape
+	ramp.add_child(r_cs)
