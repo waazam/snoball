@@ -43,16 +43,12 @@ const LOOK_ZONE_MIN_X_RATIO := 0.6  # only the right side of the screen can ever
 const AIR_STRETCH := Vector3(0.94, 1.1, 0.94)
 const LAND_SQUASH := Vector3(1.16, 0.82, 1.16)
 
-# Winter outfit (visual-only, ART_DIRECTION.md "Alpenglow Dusk" player
-# palette). The GLB mannequin ships untinted; _apply_winter_outfit() coats
-# it with a material override and dresses it with a few added accessory
-# meshes (scarf + belt). Purely cosmetic - no nodes moved/renamed, no
-# gameplay values touched.
-const COAT_COLOR := Color("#3D7EA8")    # PLAYER_COAT winter teal-blue
-const OUTFIT_TRIM := Color("#F5EFE6")   # PLAYER_TRIM fur/fringe
-const SCARF_COLOR := Color("#E8483F")   # PLAYER_SCARF ember accent
-const BELT_DARK := Color("#26221F")
-const BUCKLE_GOLD := Color("#FFB84D")
+# Visuals (visual-only, ART_DIRECTION.md "Alpenglow Dusk" player palette):
+# the realistic GLB mannequin mesh is hidden and replaced at runtime by
+# PlayerToyModel - a chunky primitive-built winter hero matching the
+# elf/snowman visual grammar - which rides the mannequin's Skeleton3D so
+# every baked animation keeps driving the body. Purely cosmetic - no nodes
+# moved/renamed, no gameplay values touched. See _build_toy_model().
 
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
@@ -62,6 +58,10 @@ const BUCKLE_GOLD := Color("#FFB84D")
 @onready var right_shoulder: Node3D = $RightShoulder
 @onready var throw_point: Marker3D = $RightShoulder/ThrowPoint
 @onready var hat_anchor: Node3D = $HatAnchor
+
+# Where equipped hats actually attach: defaults to the static hat_anchor,
+# upgraded by _build_toy_model to the toy head's bone-following HatMount.
+var _hat_mount: Node3D = null
 
 var jumps_used: int = 0
 var _throw_timer: float = 0.0
@@ -98,7 +98,10 @@ func _ready() -> void:
 	add_to_group("player")
 	_model_base_position = model.position
 	_model_base_scale = model.scale
-	_apply_winter_outfit()
+	# Default hat attachment is the static scene-authored anchor;
+	# _build_toy_model upgrades it to the toy head's bone-following mount.
+	_hat_mount = hat_anchor
+	_build_toy_model()
 	dash_charges_left = Game.get_dash_charges()
 	_throw_timer = AUTO_THROW_INTERVAL
 	# Half-interval head start so the first extra volley lands between the
@@ -110,64 +113,37 @@ func _ready() -> void:
 	if Game.equipped_hat != "":
 		_on_hat_equipped(Game.equipped_hat)
 
-# --- Winter outfit (visual-only) ----------------------------------------
-## Coat-tints every mesh of the GLB mannequin and adds scarf/belt accessory
-## meshes as new children of Model (so they inherit the landing squash and
-## airborne stretch). Model carries a 180-degree Y rotation (the GLB faces
-## +Z), so in Model-local space +Z is the player's facing direction and -Z
-## faces the chase camera - the scarf tail hangs down the back at -Z where
-## the camera sees it.
-func _apply_winter_outfit() -> void:
-	var coat := StandardMaterial3D.new()
-	coat.albedo_color = COAT_COLOR
-	coat.roughness = 0.8
-	for mi in model.find_children("*", "MeshInstance3D", true, false):
-		mi.material_override = coat
-	var scarf := _outfit_cloth(SCARF_COLOR)
-	_add_outfit_mesh(_outfit_torus(0.07, 0.15), scarf, Vector3(0, 1.48, 0))                                    # neck wrap
-	_add_outfit_mesh(_outfit_box(Vector3(0.09, 0.08, 0.05)), scarf, Vector3(0, 1.43, 0.09))                    # knot over the chest
-	_add_outfit_mesh(_outfit_box(Vector3(0.1, 0.26, 0.035)), scarf, Vector3(0, 1.33, -0.1), Vector3(8, 0, 5))  # tail down the back
-	_add_outfit_mesh(_outfit_box(Vector3(0.1, 0.05, 0.037)), _outfit_cloth(OUTFIT_TRIM), Vector3(0, 1.185, -0.115), Vector3(8, 0, 5))  # trim fringe
-	_add_outfit_mesh(_outfit_torus(0.09, 0.16), _outfit_cloth(BELT_DARK), Vector3(0, 0.98, 0))                 # belt
-	var buckle := StandardMaterial3D.new()
-	buckle.albedo_color = BUCKLE_GOLD
-	buckle.roughness = 0.35
-	buckle.metallic = 0.9
-	_add_outfit_mesh(_outfit_box(Vector3(0.055, 0.045, 0.02)), buckle, Vector3(0, 0.98, 0.12))                 # gold buckle, front
-
-func _outfit_cloth(c: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = c
-	m.roughness = 0.8
-	return m
-
-func _outfit_torus(inner: float, outer: float) -> TorusMesh:
-	var t := TorusMesh.new()
-	t.inner_radius = inner
-	t.outer_radius = outer
-	t.rings = 24
-	t.ring_segments = 10
-	return t
-
-func _outfit_box(size: Vector3) -> BoxMesh:
-	var b := BoxMesh.new()
-	b.size = size
-	return b
-
-func _add_outfit_mesh(mesh: Mesh, mat: StandardMaterial3D, pos: Vector3, rot_deg: Vector3 = Vector3.ZERO) -> void:
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = mat
-	mi.position = pos
-	mi.rotation_degrees = rot_deg
-	model.add_child(mi)
+# --- Toy body (visual-only) ----------------------------------------------
+## Swaps the realistic mannequin's look for the chunky primitive-built
+## winter hero: adds a PlayerToyModel under the GLB's Skeleton3D, so its
+## parts live in skeleton space, follow the baked animations bone-for-bone,
+## and inherit Model's landing-squash/airborne-stretch scale tweens. The
+## toy model hides the mannequin's skin mesh itself. Model carries a
+## 180-degree Y rotation (the GLB faces +Z), so skeleton-space +Z is the
+## player's facing direction and -Z faces the chase camera - the scarf tail
+## hangs down the back at -Z where the camera sees it. Equipped hats attach
+## to the toy's hat_mount (a child of the head assembly), so they ride the
+## animated head bone instead of hovering at a fixed height.
+func _build_toy_model() -> void:
+	var skeletons: Array[Node] = model.find_children("*", "Skeleton3D", true, false)
+	if skeletons.is_empty():
+		push_warning("Player: no Skeleton3D found under Model - keeping mannequin visuals")
+		return
+	var skeleton := skeletons[0] as Skeleton3D
+	var toy := PlayerToyModel.new()
+	skeleton.add_child(toy)
+	# toy built its body in _ready, which already ran inside add_child
+	# above. If the head bone was somehow missing there is no mount - keep
+	# the static scene-authored HatAnchor fallback set in _ready.
+	if toy.hat_mount != null:
+		_hat_mount = toy.hat_mount
 
 func _on_hat_equipped(hat_id: String) -> void:
-	for c in hat_anchor.get_children():
+	for c in _hat_mount.get_children():
 		c.queue_free()
 	var data: Dictionary = HatDB.get_data(hat_id)
 	var visual: Node3D = HatVisuals.build(data.get("shape", "top_hat"), data.get("color", Color(0.8, 0.1, 0.12)))
-	hat_anchor.add_child(visual)
+	_hat_mount.add_child(visual)
 	visual.scale = Vector3.ZERO
 	var tw := create_tween()
 	tw.tween_property(visual, "scale", Vector3(1.3, 1.3, 1.3), 0.1)

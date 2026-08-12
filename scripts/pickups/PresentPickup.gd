@@ -9,9 +9,11 @@ extends Area3D
 ## (ART_DIRECTION 6f), so it never leaks what's inside.
 ##
 ## Visual juice, all cosmetic: per-instance wrap color with a slow emissive
-## breathing pulse (0.5 -> 1.2 energy over 1.2s), an F5EFE6 ribbon-and-bow
-## dressing built in the scene, and a PickupGlow ground halo + glints tinted
-## to the wrap color.
+## breathing pulse (0.5 -> 1.2 energy over 1.2s) - the overhanging lid runs
+## a slightly darkened copy of the wrap so the box reads as two stacked
+## pieces instead of one dyed block - an F5EFE6 ribbon-and-bow dressing plus
+## a CANDLE_WHITE gift tag on a gold bead built in the scene, and a
+## PickupGlow ground halo + glints tinted to the wrap color.
 
 const SPIN_SPEED := 1.8  # rad/s
 
@@ -21,11 +23,15 @@ const WRAP_COLORS := [Color("#E8483F"), Color("#4FBF6B"), Color("#FFB84D")]
 const PULSE_PERIOD := 1.2
 const PULSE_ENERGY_MIN := 0.5
 const PULSE_ENERGY_MAX := 1.2
+# How far the lid's wrap shade is pulled toward dark - enough to separate
+# lid from box at a glance, not enough to read as a different color family.
+const LID_DARKEN := 0.18
 
 var snowball_type_id: String = "standard"
 var _bob_time: float = 0.0
 var _collected: bool = false
 var _wrap_mat: StandardMaterial3D
+var _lid_mat: StandardMaterial3D
 
 func _ready() -> void:
 	add_to_group("present_pickups")
@@ -49,7 +55,11 @@ func _apply_wrap() -> void:
 	_wrap_mat.albedo_color = wrap
 	_wrap_mat.emission = wrap
 	body.set_surface_override_material(0, _wrap_mat)
-	lid.set_surface_override_material(0, _wrap_mat)
+	var lid_shade: Color = wrap.darkened(LID_DARKEN)
+	_lid_mat = _wrap_mat.duplicate() as StandardMaterial3D
+	_lid_mat.albedo_color = lid_shade
+	_lid_mat.emission = lid_shade
+	lid.set_surface_override_material(0, _lid_mat)
 	var glow := Node3D.new()
 	glow.set_script(PICKUP_GLOW_SCRIPT)
 	add_child(glow)
@@ -61,7 +71,9 @@ func _process(delta: float) -> void:
 	_bob_time += delta
 	rotate_y(delta * SPIN_SPEED)
 	position.y = 0.9 + sin(_bob_time * 1.6) * 0.15
-	_wrap_mat.emission_energy_multiplier = lerpf(PULSE_ENERGY_MIN, PULSE_ENERGY_MAX, 0.5 + 0.5 * sin(_bob_time * TAU / PULSE_PERIOD))
+	var energy: float = lerpf(PULSE_ENERGY_MIN, PULSE_ENERGY_MAX, 0.5 + 0.5 * sin(_bob_time * TAU / PULSE_PERIOD))
+	_wrap_mat.emission_energy_multiplier = energy
+	_lid_mat.emission_energy_multiplier = energy
 
 func _on_body_entered(body: Node) -> void:
 	if _collected or Game.state != Game.State.PLAYING or not body.is_in_group("player"):
