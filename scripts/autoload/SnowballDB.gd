@@ -107,6 +107,20 @@ const TYPES := {
 		"effect_radius": 3.0,
 		"rarity": 13,
 	},
+	# Not part of the normal present-pickup pool (rarity 0 - get_random_id
+	# can never roll it): only obtainable by defeating the wave-15 Yeti boss
+	# and collecting his dropped SwordPickup, see EnemyYeti.gd/SwordPickup.gd.
+	"yeti_sword": {
+		"display_name": "Yeti's Christmas Tree Sword",
+		"desc": "A massive blade shaped like a decorated tree, strung with lights. Causes heavy bleeding.",
+		"damage": 60.0,
+		"color": Color(0.15, 0.5, 0.2),
+		"shape": "yeti_sword",
+		"effect": "bleed",
+		"effect_dps": 10.0,
+		"effect_duration": 6.0,
+		"rarity": 0,
+	},
 }
 
 # Tier-independent physics defaults, overridden per type's effect in get_stats().

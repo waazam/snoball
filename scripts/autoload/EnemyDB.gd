@@ -63,12 +63,27 @@ const STATS := {
 		"attack_range": 16.0,
 		"attack_cooldown": 2.4,
 		"is_ranged": true,
-		"scale": 2.6,  # the largest enemy in the game - bigger than the snowman boss's 2.0
+		"scale": 2.6,  # bigger than the snowman boss's 2.0 - but see "yeti" below, which now outsizes him
 		"color": Color(0.75, 0.08, 0.1),
 		"scene_path": "res://scenes/enemies/EnemySanta.tscn",
 		"score": 400,
 		# A one-time wave-10 boss - his 1000 health is meant literally, not
 		# a base value the usual per-wave scaling formula multiplies up.
+		"scales_with_wave": false,
+	},
+	"yeti": {
+		"display_name": "Yeti",
+		"health": 5000.0,
+		"speed": 1.8,
+		"damage": 100.0,
+		"attack_range": 4.0,  # long-reach melee - his sword swing, not a full ranged attack
+		"attack_cooldown": 3.0,
+		"is_ranged": false,
+		"scale": 3.1,  # the largest enemy in the game - bigger than santa's 2.6
+		"color": Color(0.96, 0.97, 1.0),
+		"scene_path": "res://scenes/enemies/EnemyYeti.tscn",
+		"score": 1000,
+		# A one-time wave-15 boss - his 5000 health is meant literally, like Santa's.
 		"scales_with_wave": false,
 	},
 }
@@ -93,6 +108,12 @@ func get_scaled_stats(id: String, wave: int) -> Dictionary:
 
 ## Returns an Array[String] of enemy ids to spawn for the given wave.
 func get_wave_composition(wave: int) -> Array:
+	# Yeti boss wave: a single massive one-time boss, exactly on wave 15,
+	# with nothing else spawning alongside him - unlike Santa/Snowman, who
+	# spawn on top of that wave's normal grunt/thrower/brute mix, this is a
+	# true solo boss fight, so it returns early instead of appending below.
+	if wave == 15:
+		return ["yeti"]
 	var comp: Array = []
 	var grunts: int = 6 + wave * 3
 	for i in grunts:

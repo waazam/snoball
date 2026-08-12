@@ -60,6 +60,13 @@ var current_snowball_type: String = "standard"
 
 var _regen_accum: float = 0.0
 
+# Player-side bleed (e.g. the Yeti boss's sword, see EnemyYeti.gd) - same
+# "refresh/extend rather than stack" behavior as Enemy.gd's own apply_bleed,
+# just ticked here instead since the player has no per-enemy status-effect
+# script of its own.
+var _bleed_dps: float = 0.0
+var _bleed_timer: float = 0.0
+
 func _ready() -> void:
 	_setup_input_map()
 	reset_run()
@@ -85,6 +92,8 @@ func reset_run() -> void:
 	armor = 0.0
 	equipped_hat = ""
 	_regen_accum = 0.0
+	_bleed_dps = 0.0
+	_bleed_timer = 0.0
 	emit_signal("health_changed", health, max_health)
 	emit_signal("armor_changed", armor, max_armor)
 	emit_signal("score_changed", score)
@@ -109,6 +118,11 @@ func _process(delta: float) -> void:
 			var whole: float = floor(_regen_accum)
 			_regen_accum -= whole
 			heal(whole)
+	if _bleed_timer > 0.0:
+		_bleed_timer -= delta
+		take_damage(_bleed_dps * delta)
+	else:
+		_bleed_dps = 0.0
 
 func add_score(amount: int) -> void:
 	score += amount
@@ -151,6 +165,11 @@ func take_damage(amount: float) -> void:
 		emit_signal("health_changed", health, max_health)
 	if health <= 0.0:
 		emit_signal("player_died")
+
+## Refreshes/extends rather than stacking, matching Enemy.gd's apply_bleed.
+func apply_bleed(dps: float, duration: float) -> void:
+	_bleed_dps = maxf(_bleed_dps, dps)
+	_bleed_timer = maxf(_bleed_timer, duration)
 
 func heal(amount: float) -> void:
 	health = min(max_health, health + amount)

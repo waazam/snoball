@@ -26,6 +26,8 @@ static func build(shape: String, color: Color) -> Node3D:
 			return _build_ice(color)
 		"death_ball":
 			return _build_death_ball(color)
+		"yeti_sword":
+			return _build_yeti_sword(color)
 		_:
 			return _build_simple(color, 6)
 
@@ -106,6 +108,79 @@ static func _build_death_ball(color: Color) -> Node3D:
 	cmi.material_override = cmat
 	root.add_child(cmi)
 	return root
+
+## The Yeti boss's dropped weapon (see EnemyYeti.gd/SwordPickup.gd): a long
+## blade shaped like a tiered Christmas tree - a wooden handle and gold
+## crossguard, four tapering green tiers stacked into a tree silhouette, a
+## gold star at the tip, and small emissive "light" spheres spiraling up the
+## tiers. Thrown/equipped exactly like every other snowball type once
+## picked up, just a lot longer and stranger-looking.
+const _SWORD_LIGHT_COLORS := [Color(0.9, 0.15, 0.15), Color(0.2, 0.55, 0.95), Color(0.95, 0.85, 0.2), Color(0.3, 0.85, 0.4)]
+
+static func _build_yeti_sword(color: Color) -> Node3D:
+	var root := Node3D.new()
+	_add_cyl(root, Vector3(0, 0.09, 0), 0.028, 0.032, 0.18, Color(0.4, 0.26, 0.12))
+	_add_box(root, Vector3(0, 0.19, 0), Vector3(0.16, 0.02, 0.05), Color(0.85, 0.68, 0.2))
+	var tiers := 4
+	var base_y := 0.24
+	var tier_h := 0.14
+	var tier_step := tier_h * 0.82
+	for i in tiers:
+		var t: float = float(i) / float(tiers - 1)
+		var r: float = lerp(0.17, 0.05, t)
+		_add_cyl(root, Vector3(0, base_y + i * tier_step, 0), 0.0, r, tier_h, color)
+	var tip_y: float = base_y + (tiers - 1) * tier_step + tier_h * 0.5
+	_add_box(root, Vector3(0, tip_y, 0), Vector3(0.06, 0.06, 0.02), Color(0.95, 0.8, 0.25))
+	for i in 7:
+		var t2: float = (float(i) + 0.5) / 7.0
+		var y: float = base_y + t2 * (tiers - 1) * tier_step
+		var ring_r: float = lerp(0.17, 0.06, t2) * 0.95
+		var a: float = t2 * TAU * 2.3
+		_add_light(root, Vector3(cos(a) * ring_r, y, sin(a) * ring_r), _SWORD_LIGHT_COLORS[i % _SWORD_LIGHT_COLORS.size()])
+	return root
+
+static func _add_cyl(parent: Node3D, pos: Vector3, top_r: float, bottom_r: float, height: float, color: Color) -> void:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = top_r
+	mesh.bottom_radius = bottom_r
+	mesh.height = height
+	mesh.radial_segments = 8
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mi.material_override = mat
+	mi.position = pos
+	parent.add_child(mi)
+
+static func _add_box(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> void:
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mi.material_override = mat
+	mi.position = pos
+	parent.add_child(mi)
+
+static func _add_light(parent: Node3D, pos: Vector3, color: Color) -> void:
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.02
+	mesh.height = 0.04
+	mesh.radial_segments = 6
+	mesh.rings = 4
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = color
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 2.0
+	mi.material_override = mat
+	mi.position = pos
+	parent.add_child(mi)
 
 ## A base sphere with N small "stud" meshes scattered evenly over its
 ## surface (golden-angle spiral distribution) and oriented so each one
