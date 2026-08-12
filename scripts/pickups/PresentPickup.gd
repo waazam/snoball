@@ -2,16 +2,30 @@ extends Area3D
 ## A wrapped Christmas present resting on the ground, spinning and bobbing
 ## in place. Touching it re-equips the player's snowball to whichever of
 ## SnowballDB's 9 types it was given (see Game.equip_snowball) - permanent
-## until the next present, same "equip and stay" mechanic as hats. Every
-## present looks identical on the outside; the type inside is picked by
-## WaveManager (weighted via SnowballDB.get_random_id - the death ball is
-## by far the rarest) before it's ever shown.
+## until the next present, same "equip and stay" mechanic as hats. The type
+## inside is picked by WaveManager (weighted via SnowballDB.get_random_id -
+## the death ball is by far the rarest) before it's ever shown; the wrapping
+## color is purely cosmetic, rolled independently from the ember trio
+## (ART_DIRECTION 6f), so it never leaks what's inside.
+##
+## Visual juice, all cosmetic: per-instance wrap color with a slow emissive
+## breathing pulse (0.5 -> 1.2 energy over 1.2s), an F5EFE6 ribbon-and-bow
+## dressing built in the scene, and a PickupGlow ground halo + glints tinted
+## to the wrap color.
 
 const SPIN_SPEED := 1.8  # rad/s
+
+const PICKUP_GLOW_SCRIPT := preload("res://scripts/pickups/PickupGlow.gd")
+# EMBER_RED / EMBER_GREEN / EMBER_GOLD - the reward family.
+const WRAP_COLORS := [Color("#E8483F"), Color("#4FBF6B"), Color("#FFB84D")]
+const PULSE_PERIOD := 1.2
+const PULSE_ENERGY_MIN := 0.5
+const PULSE_ENERGY_MAX := 1.2
 
 var snowball_type_id: String = "standard"
 var _bob_time: float = 0.0
 var _collected: bool = false
+var _wrap_mat: StandardMaterial3D
 
 func _ready() -> void:
 	add_to_group("present_pickups")
@@ -19,9 +33,27 @@ func _ready() -> void:
 	rotate_y(randf() * TAU)  # so a field of presents doesn't spin in lockstep
 	monitoring = true
 	body_entered.connect(_on_body_entered)
+	_apply_wrap()
 
 func setup(id: String) -> void:
 	snowball_type_id = id
+
+## Duplicate the scene's shared wrap material so each present can carry its
+## own ember color and pulse without recoloring every other instance, then
+## dress the drop with a matching ground glow.
+func _apply_wrap() -> void:
+	var wrap: Color = WRAP_COLORS[randi() % WRAP_COLORS.size()]
+	var body: MeshInstance3D = $Body
+	var lid: MeshInstance3D = $Lid
+	_wrap_mat = body.get_surface_override_material(0).duplicate() as StandardMaterial3D
+	_wrap_mat.albedo_color = wrap
+	_wrap_mat.emission = wrap
+	body.set_surface_override_material(0, _wrap_mat)
+	lid.set_surface_override_material(0, _wrap_mat)
+	var glow := Node3D.new()
+	glow.set_script(PICKUP_GLOW_SCRIPT)
+	add_child(glow)
+	glow.setup(wrap, 0.5, 0.03, 0.9)
 
 func _process(delta: float) -> void:
 	if _collected:
@@ -29,6 +61,7 @@ func _process(delta: float) -> void:
 	_bob_time += delta
 	rotate_y(delta * SPIN_SPEED)
 	position.y = 0.9 + sin(_bob_time * 1.6) * 0.15
+	_wrap_mat.emission_energy_multiplier = lerpf(PULSE_ENERGY_MIN, PULSE_ENERGY_MAX, 0.5 + 0.5 * sin(_bob_time * TAU / PULSE_PERIOD))
 
 func _on_body_entered(body: Node) -> void:
 	if _collected or Game.state != Game.State.PLAYING or not body.is_in_group("player"):

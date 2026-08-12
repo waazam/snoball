@@ -79,6 +79,19 @@ func _spawn_arena_and_player() -> void:
 	player = PLAYER_SCENE.instantiate()
 	world.add_child(player)
 	player.global_position = arena.get_node("PlayerSpawn").global_position
+	_apply_arena_lighting_overrides()
+
+func _apply_arena_lighting_overrides() -> void:
+	# Visual-only: Main.tscn owns the "Alpenglow Dusk" lighting rig (its
+	# WorldEnvironment + DuskSun key / MoonFill fill lights). If the arena
+	# scene still carries its own legacy sun, hide it so the world isn't
+	# double-lit by two shadowed directionals. Main's WorldEnvironment is the
+	# first in tree order, so it stays the active environment regardless.
+	if arena == null:
+		return
+	var legacy_sun := arena.get_node_or_null("Sun")
+	if legacy_sun is DirectionalLight3D:
+		legacy_sun.visible = false
 
 func _on_wave_cleared(_wave: int) -> void:
 	if Game.state != Game.State.PLAYING:

@@ -9,6 +9,9 @@ const SPIN_SPEED := 2.2  # rad/s
 # glance from a distance.
 const PICKUP_VISUAL_SCALE := 1.8
 
+const PICKUP_GLOW_SCRIPT := preload("res://scripts/pickups/PickupGlow.gd")
+const GLOW_COLOR := Color("#FFB84D")  # EMBER_GOLD - rewards read warm-gold against the dusk
+
 @onready var hat_anchor: Node3D = $HatAnchor
 
 var hat_id: String = ""
@@ -21,6 +24,12 @@ func _ready() -> void:
 	rotate_y(randf() * TAU)  # so a field of hats doesn't spin in lockstep
 	monitoring = true
 	body_entered.connect(_on_body_entered)
+	# Cosmetic ground halo + twinkling glints (see PickupGlow.gd) so a
+	# dropped hat gleams like a reward instead of sitting matte on the snow.
+	var glow := Node3D.new()
+	glow.set_script(PICKUP_GLOW_SCRIPT)
+	add_child(glow)
+	glow.setup(GLOW_COLOR, 0.55, 0.03, 0.85)
 
 func setup(id: String) -> void:
 	hat_id = id

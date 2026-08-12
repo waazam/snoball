@@ -89,8 +89,22 @@ func _release_all() -> void:
 		if Input.is_action_pressed(a):
 			Input.action_release(a)
 
+# ART_DIRECTION.md UI palette: base #111527, ring/knob SNOW_LIT #EAF2FB,
+# active knob EMBER_GOLD #FFB84D (warm = focus/action).
+const BASE_COLOR := Color(0.066667, 0.082353, 0.152941, 0.3)  # #111527
+const RING_COLOR := Color(0.917647, 0.94902, 0.984314, 0.55)  # #EAF2FB
+const TICK_COLOR := Color(0.917647, 0.94902, 0.984314, 0.35)  # #EAF2FB
+const KNOB_IDLE := Color(0.917647, 0.94902, 0.984314, 0.45)  # #EAF2FB
+const KNOB_ACTIVE := Color(1, 0.721569, 0.301961, 0.8)  # #FFB84D
+
 func _draw() -> void:
-	draw_circle(_visual_center, RADIUS, Color(1, 1, 1, 0.16))
-	draw_arc(_visual_center, RADIUS, 0.0, TAU, 40, Color(1, 1, 1, 0.55), 3.0, true)
-	var knob_color: Color = Color(1, 1, 1, 0.6) if _touch_index != -1 else Color(1, 1, 1, 0.4)
+	draw_circle(_visual_center, RADIUS, BASE_COLOR)
+	draw_arc(_visual_center, RADIUS, 0.0, TAU, 48, RING_COLOR, 3.0, true)
+	# Four direction ticks just inside the rim.
+	for i in 4:
+		var dir := Vector2.from_angle(TAU * float(i) / 4.0)
+		draw_line(_visual_center + dir * (RADIUS - 14.0), _visual_center + dir * (RADIUS - 6.0), TICK_COLOR, 2.0, true)
+	var active: bool = _touch_index != -1
+	var knob_color: Color = KNOB_ACTIVE if active else KNOB_IDLE
 	draw_circle(_visual_center + _knob_offset, RADIUS * 0.45, knob_color)
+	draw_arc(_visual_center + _knob_offset, RADIUS * 0.45, 0.0, TAU, 40, RING_COLOR, 2.0, true)

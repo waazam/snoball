@@ -30,7 +30,19 @@ const SIZE := 200.0                      # visible/gameplay footprint - matches 
 const COLLISION_PADDING := 60.0          # extra flat collision margin beyond the walls on every side
 const COLLISION_SIZE := SIZE + COLLISION_PADDING * 2.0
 const COLLISION_RES := int(COLLISION_SIZE) + 1  # native 1-unit spacing -> exactly COLLISION_SIZE units, no shape scaling needed
-const VISUAL_RES := 81                   # ~2.5 units/sample over SIZE - plenty smooth for hills this broad, much cheaper to render
+const VISUAL_RES := 101                  # 2 units/sample over SIZE - smooth enough for the vertex-color gradients below
+
+# "Alpenglow Dusk" snow palette (ART_DIRECTION.md Section 3) - the render
+# mesh carries per-vertex color: valleys sink toward the blue shadow tone,
+# west/sunset-facing slopes catch a warm alpenglow kiss, and a faint
+# deterministic hash mottles the open field so it doesn't read as one
+# untouched sheet. Collision build below is untouched - visual only.
+const SNOW_LIT := Color(0.918, 0.949, 0.984)        # #EAF2FB
+const SNOW_SHADOW := Color(0.561, 0.639, 0.784)     # #8FA3C8
+const SNOW_ALPENGLOW := Color(0.965, 0.847, 0.769)  # #F6D8C4
+# Horizontal direction toward the low sun (Arena.tscn's Sun yaw is 145deg).
+const SUN_DIR_XZ := Vector3(0.574, 0.0, -0.819)
+const NORMAL_EPS := 0.75  # finite-difference step for the color-only surface normal
 
 @export var ground_material: Material
 
@@ -56,27 +68,38 @@ func _build_collision() -> void:
 	add_child(cs)
 
 func _build_visual() -> void:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var half := SIZE * 0.5
 	var step: float = SIZE / float(VISUAL_RES - 1)
 	var last: int = VISUAL_RES - 1
+
+	# Precompute the grid once (positions + vertex colors) so each shared
+	# corner is only sampled/colored a single time instead of up to six.
+	var positions := PackedVector3Array()
+	var colors := PackedColorArray()
+	positions.resize(VISUAL_RES * VISUAL_RES)
+	colors.resize(VISUAL_RES * VISUAL_RES)
+	for iz in VISUAL_RES:
+		var z: float = -half + iz * step
+		for ix in VISUAL_RES:
+			var x: float = -half + ix * step
+			var h: float = TerrainHeight.get_height(x, z)
+			positions[iz * VISUAL_RES + ix] = Vector3(x, h, z)
+			colors[iz * VISUAL_RES + ix] = _vertex_color(x, z, h)
+
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for iz in range(last):
 		for ix in range(last):
-			var x0: float = -half + ix * step
-			var x1: float = x0 + step
-			var z0: float = -half + iz * step
-			var z1: float = z0 + step
-			var p00 := Vector3(x0, TerrainHeight.get_height(x0, z0), z0)
-			var p10 := Vector3(x1, TerrainHeight.get_height(x1, z0), z0)
-			var p01 := Vector3(x0, TerrainHeight.get_height(x0, z1), z1)
-			var p11 := Vector3(x1, TerrainHeight.get_height(x1, z1), z1)
+			var i00: int = iz * VISUAL_RES + ix
+			var i10: int = i00 + 1
+			var i01: int = i00 + VISUAL_RES
+			var i11: int = i01 + 1
 			var uv00 := Vector2(float(ix) / last, float(iz) / last)
 			var uv10 := Vector2(float(ix + 1) / last, float(iz) / last)
 			var uv01 := Vector2(float(ix) / last, float(iz + 1) / last)
 			var uv11 := Vector2(float(ix + 1) / last, float(iz + 1) / last)
-			_add_tri(st, p00, p10, p11, uv00, uv10, uv11)
-			_add_tri(st, p00, p11, p01, uv00, uv11, uv01)
+			_add_tri(st, positions[i00], positions[i10], positions[i11], uv00, uv10, uv11, colors[i00], colors[i10], colors[i11])
+			_add_tri(st, positions[i00], positions[i11], positions[i01], uv00, uv11, uv01, colors[i00], colors[i11], colors[i01])
 	st.generate_normals()
 	st.generate_tangents()
 	var mi := MeshInstance3D.new()
@@ -85,10 +108,35 @@ func _build_visual() -> void:
 		mi.material_override = ground_material
 	add_child(mi)
 
-func _add_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, uva: Vector2, uvb: Vector2, uvc: Vector2) -> void:
+## Alpenglow-dusk snow shading, baked per vertex: valleys cool toward the
+## blue shadow tone, sunset-facing slopes pick up a warm alpenglow tint,
+## and a deterministic hash adds faint wind-mottled variation.
+func _vertex_color(x: float, z: float, h: float) -> Color:
+	var c := SNOW_LIT
+	var shade: float = clampf(-h * 0.25, 0.0, 0.6)
+	var n := _surface_normal(x, z)
+	var glow: float = clampf(n.dot(SUN_DIR_XZ) * 0.5, 0.0, 0.5)
+	var mottle: float = absf(fposmod(sin(x * 12.9898 + z * 78.233) * 43758.5453, 1.0))
+	c = c.lerp(SNOW_SHADOW, minf(shade + mottle * 0.10, 0.65))
+	c = c.lerp(SNOW_ALPENGLOW, glow)
+	return c
+
+## Cheap finite-difference normal, used only for the color bake above -
+## the mesh's real lighting normals still come from generate_normals().
+func _surface_normal(x: float, z: float) -> Vector3:
+	var hl: float = TerrainHeight.get_height(x - NORMAL_EPS, z)
+	var hr: float = TerrainHeight.get_height(x + NORMAL_EPS, z)
+	var hb: float = TerrainHeight.get_height(x, z - NORMAL_EPS)
+	var hf: float = TerrainHeight.get_height(x, z + NORMAL_EPS)
+	return Vector3(hl - hr, 2.0 * NORMAL_EPS, hb - hf).normalized()
+
+func _add_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, uva: Vector2, uvb: Vector2, uvc: Vector2, ca: Color, cb: Color, cc: Color) -> void:
 	st.set_uv(uva)
+	st.set_color(ca)
 	st.add_vertex(a)
 	st.set_uv(uvb)
+	st.set_color(cb)
 	st.add_vertex(b)
 	st.set_uv(uvc)
+	st.set_color(cc)
 	st.add_vertex(c)

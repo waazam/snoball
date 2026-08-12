@@ -9,6 +9,9 @@ const SNOWBALL_TYPE_ID := "yeti_sword"
 const SPIN_SPEED := 1.4  # rad/s - slower than PresentPickup's spin, it's a much bigger/heavier object
 const VISUAL_SCALE := 2.2
 
+const PICKUP_GLOW_SCRIPT := preload("res://scripts/pickups/PickupGlow.gd")
+const GLOW_COLOR := Color("#FFB84D")  # EMBER_GOLD - the legendary-drop gleam
+
 var _bob_time: float = 0.0
 var _collected: bool = false
 
@@ -22,6 +25,13 @@ func _ready() -> void:
 	visual.scale = Vector3.ONE * VISUAL_SCALE
 	visual.rotation_degrees = Vector3(0, 0, 90)  # lying flat on its side, not standing upright on its handle
 	add_child(visual)
+	# Cosmetic boss-drop fanfare: a wider gold ground halo with an extra
+	# glint (see PickupGlow.gd) - the once-a-run sword should out-shine
+	# every present around it.
+	var glow := Node3D.new()
+	glow.set_script(PICKUP_GLOW_SCRIPT)
+	add_child(glow)
+	glow.setup(GLOW_COLOR, 0.8, 0.03, 0.6, 4)
 
 func _process(delta: float) -> void:
 	if _collected:

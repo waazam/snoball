@@ -32,6 +32,8 @@ var effect_data: Dictionary = {}
 
 var _color: Color = Color.WHITE
 var _visual_root: Node3D
+var _trail: GPUParticles3D = null
+var _wisp_color: Color = SnowballVisuals.SNOW_LIT
 var _pulse_time: float = 0.0
 
 var _hit_bodies: Array = []
@@ -88,13 +90,26 @@ func setup(p_direction: Vector3, p_stats: Dictionary, p_is_player_owned: bool, p
 func _build_visual() -> void:
 	if _visual_root and is_instance_valid(_visual_root):
 		_visual_root.queue_free()
+	if _trail and is_instance_valid(_trail):
+		_trail.queue_free()
 	var shape: String = SnowballDB.get_shape(type_id) if (is_player_owned and not is_cluster_shard) else "standard"
 	_visual_root = SnowballVisuals.build(shape, _color)
 	add_child(_visual_root)
+	# Faint flight wisp (visual only) - snow-white by default, tinted to the
+	# type's FX color for effect balls; the same tint colors the impact puff.
+	_wisp_color = SnowballVisuals.trail_color_for(shape)
+	_trail = SnowballVisuals.make_trail(_wisp_color)
+	add_child(_trail)
 
 func _physics_process(delta: float) -> void:
 	if _dead or Game.state != Game.State.PLAYING:
+		# Pause the wisp while frozen (e.g. upgrade menu) so particles don't
+		# pool at a stationary point.
+		if _trail and is_instance_valid(_trail) and _trail.emitting:
+			_trail.emitting = false
 		return
+	if _trail and is_instance_valid(_trail) and not _trail.emitting:
+		_trail.emitting = true
 	_age += delta
 	if _age > lifetime:
 		_die()
@@ -212,4 +227,8 @@ func _die() -> void:
 	if _dead:
 		return
 	_dead = true
+	# Visual-only impact feel: a small self-freeing snow puff where the ball
+	# ended, tinted like its flight wisp.
+	if is_inside_tree():
+		SnowballVisuals.spawn_impact_puff(get_tree().current_scene, global_position, _wisp_color)
 	queue_free()

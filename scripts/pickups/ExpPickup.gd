@@ -47,11 +47,17 @@ const BRANCH_WIDTH := 0.035
 const BRANCH_ANGLE := deg_to_rad(35.0)
 const BRANCH_LEN_FRAC := 0.32
 const BRANCH_FRACTIONS := [0.5, 0.78]  # how far along each arm the two branch pairs sprout
-const CORE_COLOR := Color(0.75, 0.92, 1.0)
-const EDGE_COLOR := Color(0.95, 0.99, 1.0)
+# Palette (ART_DIRECTION): FX_XP #7FD8FF gem-blue core, SNOW_LIT icy edges,
+# emissive at energy 1.5 so the glow pass makes dropped exp gleam like
+# scattered gems against the dusk snow.
+const CORE_COLOR := Color("#7FD8FF")
+const EDGE_COLOR := Color("#EAF2FB")
+const GLINT_SIZE := 0.06
 
 var _bob_time: float = 0.0
 var _collected: bool = false
+var _visual: MeshInstance3D
+var _glint_mat: StandardMaterial3D
 
 func _ready() -> void:
 	add_to_group("exp_pickups")
@@ -61,19 +67,52 @@ func _ready() -> void:
 	_spawn_visual()
 
 func _spawn_visual() -> void:
-	var mi := MeshInstance3D.new()
-	mi.mesh = _build_snowflake_mesh()
+	_visual = MeshInstance3D.new()
+	_visual.mesh = _build_snowflake_mesh()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.disable_receive_shadows = true
 	mat.emission_enabled = true
-	mat.emission = Color(0.6, 0.85, 1.0)
-	mat.emission_energy_multiplier = 0.4
-	mi.material_override = mat
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mi)
+	mat.emission = CORE_COLOR
+	mat.emission_energy_multiplier = 1.5
+	_visual.material_override = mat
+	_visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_visual)
+	_spawn_glint()
+
+## A tiny billboarded sparkle diamond riding just off the flake's face -
+## its alpha twinkles in _process, so every exp gem winks at the player.
+## Kept to a single 2-triangle mesh since dozens of these can be on the
+## ground at once.
+func _spawn_glint() -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var h := GLINT_SIZE
+	var w := GLINT_SIZE * 0.38
+	st.add_vertex(Vector3(0, h, 0))
+	st.add_vertex(Vector3(-w, 0, 0))
+	st.add_vertex(Vector3(w, 0, 0))
+	st.add_vertex(Vector3(0, -h, 0))
+	st.add_vertex(Vector3(w, 0, 0))
+	st.add_vertex(Vector3(-w, 0, 0))
+	var glint := MeshInstance3D.new()
+	glint.mesh = st.commit()
+	_glint_mat = StandardMaterial3D.new()
+	_glint_mat.albedo_color = EDGE_COLOR
+	_glint_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_glint_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_glint_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	_glint_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_glint_mat.disable_receive_shadows = true
+	_glint_mat.emission_enabled = true
+	_glint_mat.emission = CORE_COLOR
+	_glint_mat.emission_energy_multiplier = 1.8
+	glint.material_override = _glint_mat
+	glint.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	glint.position = Vector3(0.12, 0.12, 0.0)
+	_visual.add_child(glint)
 
 ## A simple 6-armed snowflake glyph: a small hub plus 6 spokes out to
 ## SNOWFLAKE_RADIUS, each with a pair of angled side-branches near the tip -
@@ -133,6 +172,12 @@ func _process(delta: float) -> void:
 		return
 	_bob_time += delta
 	rotate_y(delta * ROTATE_SPEED)
+	# Visual-only extra bob on the mesh child: in phase with the root's bob
+	# below, so the flake visually sweeps ~0.2 units while the collision
+	# sphere keeps its original 0.1 travel.
+	_visual.position.y = sin(_bob_time * 2.0) * 0.1
+	var twinkle: float = 0.5 + 0.5 * sin(_bob_time * 3.2)
+	_glint_mat.albedo_color.a = 0.1 + 0.9 * twinkle * twinkle * twinkle
 	var player: Node3D = _get_player()
 	if player and global_position.distance_to(player.global_position) <= MAGNET_RADIUS:
 		_fly_toward(player, delta)

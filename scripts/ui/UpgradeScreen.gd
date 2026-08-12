@@ -21,13 +21,19 @@ func open() -> void:
 		if i < _offers.size():
 			var offer: Dictionary = _offers[i]
 			card.visible = true
-			card.get_node("Bg").color = Color(offer.color, 0.85)
+			# "Bg" is now the card's colored accent strip under the title -
+			# the offer's signature color at full strength on a dark panel.
+			card.get_node("Bg").color = Color(offer.color, 1.0)
 			card.get_node("TitleLabel").text = offer.title
 			card.get_node("DescLabel").text = offer.desc
 			card.get_node("KeyHint").text = "Press %d" % (i + 1)
 		else:
 			card.visible = false
 	visible = true
+	# Visual-only fade-in so the choice moment lands softly.
+	var root: Control = $Root
+	root.modulate.a = 0.0
+	create_tween().tween_property(root, "modulate:a", 1.0, 0.22)
 
 func _process(_delta: float) -> void:
 	if not visible:

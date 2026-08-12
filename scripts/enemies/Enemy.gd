@@ -15,6 +15,16 @@ const DASH_INTERVAL_MIN := 4.0
 const DASH_INTERVAL_MAX := 8.0
 const EXP_PICKUP_SCENE_PATH := "res://scenes/pickups/ExpPickup.tscn"
 
+# Body-color palette pins (ART_DIRECTION.md section 3). EnemyDB.gd is frozen
+# data, so the ids that have no dedicated subtype script (the reindeer scene's
+# grunt/brute) get their "Alpenglow Dusk" body colors here instead of from the
+# DB's legacy values. Subtype scripts (elf, snowman, santa, yeti) re-pin their
+# own colors in their setup() overrides, same pattern.
+const BODY_COLOR_OVERRIDES := {
+	"grunt": Color("#8A5A38"),  # reindeer warm tan hide
+	"brute": Color("#4A3325"),  # elder reindeer - WOOD_BARK, darker than grunt
+}
+
 var enemy_id: String = "grunt"
 var max_health: float = 30.0
 var health: float = 30.0
@@ -95,9 +105,12 @@ func setup(id: String, wave: int) -> void:
 	var sc: float = stats.scale
 	_base_scale = Vector3(sc, sc, sc)
 	scale = _base_scale
-	_body_base_color = stats.color
+	_body_base_color = BODY_COLOR_OVERRIDES.get(id, stats.color)
 	_body_mat = StandardMaterial3D.new()
-	_body_mat.albedo_color = stats.color
+	_body_mat.albedo_color = _body_base_color
+	# Cloth-ish matte default per the art direction (subtypes refine this in
+	# their own setup() overrides - snow bodies add rim, fur goes rougher).
+	_body_mat.roughness = 0.85
 	mesh.material_override = _body_mat
 	attack_timer = randf_range(0.0, attack_cooldown)
 	_jump_timer = randf_range(JUMP_INTERVAL_MIN, JUMP_INTERVAL_MAX)
@@ -339,6 +352,7 @@ func _die() -> void:
 	Game.add_score(score_value)
 	Game.add_kill()
 	_drop_exp_pickup()
+	_spawn_snow_puff()
 	_spawn_death_fx()
 	remove_from_group("enemies")
 	collision.set_deferred("disabled", true)
@@ -354,6 +368,38 @@ func _die() -> void:
 ## while EnemyElf overrides it for a confetti burst.
 func _spawn_death_fx() -> void:
 	pass
+
+## Snow-lit puff of unshaded billboard quads on every death (SNOW_LIT
+## #EAF2FB per the art direction), so enemies burst into a little cloud of
+## kicked-up snow before the shrink tween finishes. Purely visual: one root
+## node in current_scene (so it outlives this enemy's queue_free), 8 quads
+## sharing a single material, one tween driving expansion + fade.
+const SNOW_PUFF_COLOR := Color(0.918, 0.949, 0.984, 0.75)  # SNOW_LIT #EAF2FB
+
+func _spawn_snow_puff() -> void:
+	var root := Node3D.new()
+	get_tree().current_scene.add_child(root)
+	root.global_position = global_position + Vector3.UP * 0.6
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.28, 0.28)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = SNOW_PUFF_COLOR
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	for i in 8:
+		var mi := MeshInstance3D.new()
+		mi.mesh = quad
+		mi.material_override = mat
+		var dir := Vector3(randf_range(-1.0, 1.0), randf_range(-0.2, 1.0), randf_range(-1.0, 1.0)).normalized()
+		mi.position = dir * randf_range(0.12, 0.38)
+		root.add_child(mi)
+	var tw := root.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(root, "scale", Vector3.ONE * 2.6, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(mat, "albedo_color:a", 0.0, 0.4)
+	tw.chain().tween_callback(root.queue_free)
 
 ## Every kill drops one exp snowflake - leveling no longer comes from the
 ## kill itself, only from the player actually collecting the pickup it

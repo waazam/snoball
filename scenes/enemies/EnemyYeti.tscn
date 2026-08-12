@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/enemies/EnemyYeti.gd" id="1"]
 
@@ -17,7 +17,7 @@ size = Vector2(0.82, 0.14)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bg"]
 shading_mode = 0
-albedo_color = Color(0.05, 0.05, 0.05, 0.7)
+albedo_color = Color(0.067, 0.082, 0.153, 0.7)
 billboard_mode = 2
 transparency = 1
 no_depth_test = true
@@ -27,7 +27,7 @@ size = Vector2(0.8, 0.1)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fill"]
 shading_mode = 0
-albedo_color = Color(0.25, 0.9, 0.35, 1)
+albedo_color = Color(0.91, 0.282, 0.247, 1)
 billboard_mode = 2
 no_depth_test = true
 

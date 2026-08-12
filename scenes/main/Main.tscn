@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://db47i8upj1lb4"]
+[gd_scene load_steps=11 format=3 uid="uid://db47i8upj1lb4"]
 
 [ext_resource type="Script" uid="uid://b2jojhd1tgoca" path="res://scripts/main/Main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/ui/MainMenu.tscn" id="2"]
@@ -6,9 +6,60 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/UpgradeScreen.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/ui/GameOverScreen.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/ui/MobileControls.tscn" id="6"]
+[ext_resource type="Script" path="res://scripts/main/DuskLanterns.gd" id="7"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_dusk"]
+sky_top_color = Color(0.141176, 0.109804, 0.278431, 1)
+sky_horizon_color = Color(0.94902, 0.521569, 0.290196, 1)
+sky_curve = 0.12
+ground_bottom_color = Color(0.141176, 0.0705882, 0.12549, 1)
+ground_horizon_color = Color(0.85098, 0.372549, 0.231373, 1)
+ground_curve = 0.1
+
+[sub_resource type="Sky" id="Sky_dusk"]
+sky_material = SubResource("ProceduralSkyMaterial_dusk")
+
+[sub_resource type="Environment" id="Environment_dusk"]
+background_mode = 2
+sky = SubResource("Sky_dusk")
+ambient_light_source = 2
+ambient_light_color = Color(0.560784, 0.639216, 0.784314, 1)
+ambient_light_energy = 0.6
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.5
+glow_bloom = 0.1
+glow_blend_mode = 0
+glow_hdr_threshold = 1.0
+fog_enabled = true
+fog_light_color = Color(0.85098, 0.541176, 0.4, 1)
+fog_density = 0.008
+fog_sky_affect = 0.45
 
 [node name="Main" type="Node3D" unique_id=1841528254]
 script = ExtResource("1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1122334455]
+environment = SubResource("Environment_dusk")
+
+[node name="DuskSun" type="DirectionalLight3D" parent="." unique_id=1223344556]
+position = Vector3(0, 15, 0)
+rotation_degrees = Vector3(-18, 145, 0)
+light_color = Color(1, 0.627451, 0.360784, 1)
+light_energy = 1.3
+light_angular_distance = 2.5
+shadow_enabled = true
+shadow_opacity = 0.85
+directional_shadow_max_distance = 60.0
+
+[node name="MoonFill" type="DirectionalLight3D" parent="." unique_id=1324455667]
+position = Vector3(0, 15, 0)
+rotation_degrees = Vector3(-55, -35, 0)
+light_color = Color(0.788235, 0.839216, 0.933333, 1)
+light_energy = 0.35
+
+[node name="Lanterns" type="Node3D" parent="." unique_id=1425566778]
+script = ExtResource("7")
 
 [node name="World" type="Node3D" parent="." unique_id=1880356125]
 

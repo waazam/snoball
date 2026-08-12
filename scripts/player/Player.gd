@@ -43,6 +43,17 @@ const LOOK_ZONE_MIN_X_RATIO := 0.6  # only the right side of the screen can ever
 const AIR_STRETCH := Vector3(0.94, 1.1, 0.94)
 const LAND_SQUASH := Vector3(1.16, 0.82, 1.16)
 
+# Winter outfit (visual-only, ART_DIRECTION.md "Alpenglow Dusk" player
+# palette). The GLB mannequin ships untinted; _apply_winter_outfit() coats
+# it with a material override and dresses it with a few added accessory
+# meshes (scarf + belt). Purely cosmetic - no nodes moved/renamed, no
+# gameplay values touched.
+const COAT_COLOR := Color("#3D7EA8")    # PLAYER_COAT winter teal-blue
+const OUTFIT_TRIM := Color("#F5EFE6")   # PLAYER_TRIM fur/fringe
+const SCARF_COLOR := Color("#E8483F")   # PLAYER_SCARF ember accent
+const BELT_DARK := Color("#26221F")
+const BUCKLE_GOLD := Color("#FFB84D")
+
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
 @onready var camera: Camera3D = $CameraPivot/SpringArm3D/Camera3D
@@ -87,6 +98,7 @@ func _ready() -> void:
 	add_to_group("player")
 	_model_base_position = model.position
 	_model_base_scale = model.scale
+	_apply_winter_outfit()
 	dash_charges_left = Game.get_dash_charges()
 	_throw_timer = AUTO_THROW_INTERVAL
 	# Half-interval head start so the first extra volley lands between the
@@ -97,6 +109,58 @@ func _ready() -> void:
 	# up (Game.equipped_hat starts as "" on every fresh run).
 	if Game.equipped_hat != "":
 		_on_hat_equipped(Game.equipped_hat)
+
+# --- Winter outfit (visual-only) ----------------------------------------
+## Coat-tints every mesh of the GLB mannequin and adds scarf/belt accessory
+## meshes as new children of Model (so they inherit the landing squash and
+## airborne stretch). Model carries a 180-degree Y rotation (the GLB faces
+## +Z), so in Model-local space +Z is the player's facing direction and -Z
+## faces the chase camera - the scarf tail hangs down the back at -Z where
+## the camera sees it.
+func _apply_winter_outfit() -> void:
+	var coat := StandardMaterial3D.new()
+	coat.albedo_color = COAT_COLOR
+	coat.roughness = 0.8
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		mi.material_override = coat
+	var scarf := _outfit_cloth(SCARF_COLOR)
+	_add_outfit_mesh(_outfit_torus(0.07, 0.15), scarf, Vector3(0, 1.48, 0))                                    # neck wrap
+	_add_outfit_mesh(_outfit_box(Vector3(0.09, 0.08, 0.05)), scarf, Vector3(0, 1.43, 0.09))                    # knot over the chest
+	_add_outfit_mesh(_outfit_box(Vector3(0.1, 0.26, 0.035)), scarf, Vector3(0, 1.33, -0.1), Vector3(8, 0, 5))  # tail down the back
+	_add_outfit_mesh(_outfit_box(Vector3(0.1, 0.05, 0.037)), _outfit_cloth(OUTFIT_TRIM), Vector3(0, 1.185, -0.115), Vector3(8, 0, 5))  # trim fringe
+	_add_outfit_mesh(_outfit_torus(0.09, 0.16), _outfit_cloth(BELT_DARK), Vector3(0, 0.98, 0))                 # belt
+	var buckle := StandardMaterial3D.new()
+	buckle.albedo_color = BUCKLE_GOLD
+	buckle.roughness = 0.35
+	buckle.metallic = 0.9
+	_add_outfit_mesh(_outfit_box(Vector3(0.055, 0.045, 0.02)), buckle, Vector3(0, 0.98, 0.12))                 # gold buckle, front
+
+func _outfit_cloth(c: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = 0.8
+	return m
+
+func _outfit_torus(inner: float, outer: float) -> TorusMesh:
+	var t := TorusMesh.new()
+	t.inner_radius = inner
+	t.outer_radius = outer
+	t.rings = 24
+	t.ring_segments = 10
+	return t
+
+func _outfit_box(size: Vector3) -> BoxMesh:
+	var b := BoxMesh.new()
+	b.size = size
+	return b
+
+func _add_outfit_mesh(mesh: Mesh, mat: StandardMaterial3D, pos: Vector3, rot_deg: Vector3 = Vector3.ZERO) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.position = pos
+	mi.rotation_degrees = rot_deg
+	model.add_child(mi)
 
 func _on_hat_equipped(hat_id: String) -> void:
 	for c in hat_anchor.get_children():

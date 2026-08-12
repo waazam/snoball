@@ -8,6 +8,7 @@ extends Node3D
 ## background backdrop.
 
 const PINE_CANOPY_SCRIPT := preload("res://scripts/world/PineCanopy.gd")
+const SNOW_CAP_SCRIPT := preload("res://scripts/world/SnowCap.gd")
 
 const INNER_RADIUS := 32.0  # stays clear of the hand-placed obstacle cluster near spawn
 const OUTER_RADIUS := 94.0  # stays inside the walls (+-100)
@@ -23,12 +24,18 @@ const PLATFORM_COUNT := 12
 func _ready() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1234
+	# Separate RNG for the purely-cosmetic additions (canopy proportions,
+	# snow caps) so the main rng's draw sequence - and therefore every
+	# collidable tree/rock/platform position - stays exactly what it was
+	# before the visual overhaul.
+	var vis_rng := RandomNumberGenerator.new()
+	vis_rng.seed = 555
 	for i in TREE_COUNT:
-		_spawn_tree(rng)
+		_spawn_tree(rng, vis_rng)
 	for i in ROCK_COUNT:
-		_spawn_rock(rng)
+		_spawn_rock(rng, vis_rng)
 	for i in PLATFORM_COUNT:
-		_spawn_platform(rng)
+		_spawn_platform(rng, vis_rng)
 
 ## y is the actual terrain height at (x, z) (see TerrainHeight.gd), not a
 ## flat 0 - the ground out here rolls now, so every caller below builds on
@@ -44,8 +51,11 @@ func _random_point(rng: RandomNumberGenerator) -> Vector3:
 
 ## Same trunk-cylinder + PineCanopy.gd combo Arena.tscn's hand-placed
 ## Tree1-10 use, minus the Christmas lights (these are background fill,
-## not the decorated centerpiece trees).
-func _spawn_tree(rng: RandomNumberGenerator) -> void:
+## not the decorated centerpiece trees). Canopy proportions vary per tree
+## (vis_rng) so the scattered forest gets slim spires next to squat firs -
+## the hand-placed decorated trees keep their default 1.3/2.8 shape since
+## their light spirals are tuned to it.
+func _spawn_tree(rng: RandomNumberGenerator, vis_rng: RandomNumberGenerator) -> void:
 	var tree := Node3D.new()
 	tree.position = _random_point(rng)
 	tree.rotation.y = rng.randf() * TAU
@@ -76,10 +86,12 @@ func _spawn_tree(rng: RandomNumberGenerator) -> void:
 	var canopy := Node3D.new()
 	canopy.set_script(PINE_CANOPY_SCRIPT)
 	canopy.canopy_material = canopy_material
+	canopy.base_radius = vis_rng.randf_range(1.05, 1.55)
+	canopy.total_height = vis_rng.randf_range(2.4, 3.4)
 	canopy.position = Vector3(0, 3.0, 0)
 	tree.add_child(canopy)
 
-func _spawn_rock(rng: RandomNumberGenerator) -> void:
+func _spawn_rock(rng: RandomNumberGenerator, vis_rng: RandomNumberGenerator) -> void:
 	var rock := StaticBody3D.new()
 	var s: float = rng.randf_range(0.7, 2.0)
 	var pos: Vector3 = _random_point(rng)
@@ -105,10 +117,21 @@ func _spawn_rock(rng: RandomNumberGenerator) -> void:
 	cs.shape = shape
 	rock.add_child(cs)
 
+	# Settled snow on most boulders (visual only, no collision) - the same
+	# SnowCap clusters the hand-placed crates/rocks in Arena.tscn carry, so
+	# the scattered ring matches the combat cluster's dressing.
+	if vis_rng.randf() < 0.8:
+		var cap := Node3D.new()
+		cap.set_script(SNOW_CAP_SCRIPT)
+		cap.cap_radius = 0.45
+		cap.blob_count = 4
+		cap.position = Vector3(0, 0.82, 0)
+		rock.add_child(cap)
+
 ## A boxy platform plus an angled ramp leading up to it, same shapes
 ## Terrain/PlatformA-B/RampA-B already use, just scattered with random
 ## size/position instead of hand-placed.
-func _spawn_platform(rng: RandomNumberGenerator) -> void:
+func _spawn_platform(rng: RandomNumberGenerator, vis_rng: RandomNumberGenerator) -> void:
 	var pos: Vector3 = _random_point(rng)
 	var width: float = rng.randf_range(5.0, 8.0)
 	var height: float = rng.randf_range(1.4, 2.4)
@@ -129,6 +152,16 @@ func _spawn_platform(rng: RandomNumberGenerator) -> void:
 	var p_cs := CollisionShape3D.new()
 	p_cs.shape = p_shape
 	platform.add_child(p_cs)
+
+	# Snow drift across the platform top (visual only, no collision).
+	var cap := Node3D.new()
+	cap.set_script(SNOW_CAP_SCRIPT)
+	cap.cap_radius = width * 0.28
+	cap.blob_count = 6
+	cap.blob_size_min = 0.2
+	cap.blob_size_max = 0.38
+	cap.position = Vector3(0, height * 0.5 - 0.04, 0)
+	platform.add_child(cap)
 
 	var ramp_len: float = height / sin(deg_to_rad(20.0))
 	var ramp_dir := Vector3(sin(facing), 0, cos(facing))

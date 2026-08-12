@@ -40,11 +40,18 @@ func _release() -> void:
 		Input.action_release(action_name)
 		queue_redraw()
 
+# ART_DIRECTION.md UI palette: ring SNOW_LIT #EAF2FB, seat #111527.
+const RING_COLOR := Color("#EAF2FB")
+const SEAT_COLOR := Color(0.066667, 0.082353, 0.152941, 0.35)  # #111527
+
 func _draw() -> void:
 	var c: Vector2 = size / 2.0
 	var r: float = minf(size.x, size.y) / 2.0
 	var color: Color = bg_color
-	if _touch_index != -1:
+	var pressed: bool = _touch_index != -1
+	if pressed:
 		color = Color(bg_color.r, bg_color.g, bg_color.b, minf(1.0, bg_color.a + 0.35))
-	draw_circle(c, r, color)
-	draw_arc(c, r, 0.0, TAU, 32, Color(1, 1, 1, 0.6), 3.0, true)
+	# Dark seat behind the tinted disc keeps it readable over bright snow.
+	draw_circle(c, r, SEAT_COLOR)
+	draw_circle(c, r - 3.0, color)
+	draw_arc(c, r - 1.5, 0.0, TAU, 48, Color(RING_COLOR.r, RING_COLOR.g, RING_COLOR.b, 0.85 if pressed else 0.6), 3.0, true)

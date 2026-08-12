@@ -10,23 +10,28 @@ extends MeshInstance3D
 ## facets standing in for clouds catching the last warm light.
 
 const RADIUS := 260.0
-const RINGS := 7
-const SEGMENTS := 16
+const RINGS := 8
+const SEGMENTS := 20
 const SPLATTER_CHANCE := 0.1
-const SPLATTER_MIX := 0.65
+const SPLATTER_MIX := 0.6
 
-# Sunset gradient, horizon (t=0) to zenith (t=1).
-const HORIZON_GOLD := Color(0.98, 0.62, 0.28)
-const SUNSET_ORANGE := Color(0.9, 0.42, 0.24)
-const DUSK_PLUM := Color(0.55, 0.28, 0.4)
-const TWILIGHT_PURPLE := Color(0.3, 0.22, 0.46)
-const NIGHT_INDIGO := Color(0.14, 0.11, 0.28)
-const BLUSH_PINK := Color(0.92, 0.6, 0.55)
-const RED_ACCENT := Color(0.82, 0.22, 0.2)
-const GOLD_ACCENT := Color(0.92, 0.68, 0.3)
-const CHARCOAL := Color(0.12, 0.12, 0.13)
+# "Alpenglow Dusk" gradient (ART_DIRECTION.md 6a), horizon (t=0) to zenith (t=1).
+const HORIZON_GOLD := Color(0.949, 0.522, 0.29)     # #F2854A
+const SUNSET_ORANGE := Color(0.851, 0.373, 0.231)   # #D95F3B
+const DUSK_PLUM := Color(0.549, 0.278, 0.4)         # #8C4766
+const TWILIGHT_PURPLE := Color(0.29, 0.204, 0.4)    # #4A3466
+const NIGHT_INDIGO := Color(0.141, 0.11, 0.278)     # #241C47
+const RED_ACCENT := Color(0.91, 0.282, 0.247)       # #E8483F
+const GOLD_ACCENT := Color(1.0, 0.722, 0.302)       # #FFB84D
+const BLUSH_PINK := Color(0.941, 0.635, 0.557)      # #F0A28E
 
-const SPLATTER_COLORS := [RED_ACCENT, GOLD_ACCENT, BLUSH_PINK, CHARCOAL, TWILIGHT_PURPLE]
+const SPLATTER_COLORS := [RED_ACCENT, GOLD_ACCENT, BLUSH_PINK, NIGHT_INDIGO]
+
+# Horizontal azimuth of Arena.tscn's low Sun (yaw 145deg) - horizon facets
+# near this direction get an extra golden flush, so the sky actually reads
+# as "the sun is setting over THERE" and agrees with the light/shadows.
+const SUN_AZIMUTH := -0.96
+const SUN_GLOW_SPAN := 0.45  # how far up the dome the flush reaches
 
 func _ready() -> void:
 	mesh = _build_dome()
@@ -41,17 +46,23 @@ func _ready() -> void:
 # --- Palette -----------------------------------------------------------
 ## t: 0 at the horizon, 1 at the zenith.
 func _gradient_color(t: float) -> Color:
-	if t < 0.2:
-		return HORIZON_GOLD.lerp(SUNSET_ORANGE, t / 0.2)
-	elif t < 0.45:
-		return SUNSET_ORANGE.lerp(DUSK_PLUM, (t - 0.2) / 0.25)
-	elif t < 0.75:
-		return DUSK_PLUM.lerp(TWILIGHT_PURPLE, (t - 0.45) / 0.3)
+	if t < 0.22:
+		return HORIZON_GOLD.lerp(SUNSET_ORANGE, t / 0.22)
+	elif t < 0.5:
+		return SUNSET_ORANGE.lerp(DUSK_PLUM, (t - 0.22) / 0.28)
+	elif t < 0.78:
+		return DUSK_PLUM.lerp(TWILIGHT_PURPLE, (t - 0.5) / 0.28)
 	else:
-		return TWILIGHT_PURPLE.lerp(NIGHT_INDIGO, (t - 0.75) / 0.25)
+		return TWILIGHT_PURPLE.lerp(NIGHT_INDIGO, (t - 0.78) / 0.22)
 
-func _face_color(t: float) -> Color:
+## t: height up the dome; azimuth: the facet's horizontal angle. Facets low
+## on the dome and near the sun azimuth blend toward gold - the dying sun's
+## flush - before the random paint-fleck splatter is considered.
+func _face_color(t: float, azimuth: float) -> Color:
 	var base: Color = _gradient_color(t)
+	var facing: float = clampf(cos(azimuth - SUN_AZIMUTH), 0.0, 1.0)
+	var flush: float = facing * facing * clampf(1.0 - t / SUN_GLOW_SPAN, 0.0, 1.0) * 0.5
+	base = base.lerp(GOLD_ACCENT, flush)
 	if randf() < SPLATTER_CHANCE:
 		var splat: Color = SPLATTER_COLORS[randi() % SPLATTER_COLORS.size()]
 		return base.lerp(splat, SPLATTER_MIX)
@@ -76,7 +87,7 @@ func _build_dome() -> ArrayMesh:
 			var p10: Vector3 = _sphere_point(phi1, th0)
 			var p11: Vector3 = _sphere_point(phi1, th1)
 			var t: float = (sin(phi0) + sin(phi1)) * 0.5
-			var color: Color = _face_color(t)
+			var color: Color = _face_color(t, (th0 + th1) * 0.5)
 			_add_tri(st, p00, p01, p11, color)
 			_add_tri(st, p00, p11, p10, color)
 	st.generate_normals()

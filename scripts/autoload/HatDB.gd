@@ -8,7 +8,7 @@ const TYPES := {
 	"knight_helm": {
 		"display_name": "Knight's Helm",
 		"desc": "+25 armor, fully charged",
-		"color": Color(0.62, 0.65, 0.7),
+		"color": Color("#9AA4B5"),
 		"shape": "knight_helmet",
 		"kind": "armor",
 		"amount": 25.0,
@@ -16,7 +16,7 @@ const TYPES := {
 	"berserker_horns": {
 		"display_name": "Berserker Horns",
 		"desc": "Snowballs hit harder and fly faster",
-		"color": Color(0.75, 0.12, 0.1),
+		"color": Color("#B52A24"),
 		"shape": "horns",
 		"kind": "throw_power",
 		"amount": 1,
@@ -24,7 +24,7 @@ const TYPES := {
 	"swift_cap": {
 		"display_name": "Swift Cap",
 		"desc": "Move a little faster",
-		"color": Color(0.15, 0.6, 0.3),
+		"color": Color("#2E7D46"),
 		"shape": "cat_ears",
 		"kind": "speed",
 		"amount": 1,
@@ -32,7 +32,7 @@ const TYPES := {
 	"frost_crown": {
 		"display_name": "Frost Wizard Hat",
 		"desc": "+20 max health, fully healed",
-		"color": Color(0.35, 0.65, 0.95),
+		"color": Color("#5A8FD9"),
 		"shape": "wizard_hat",
 		"kind": "max_health",
 		"amount": 20.0,
@@ -40,7 +40,7 @@ const TYPES := {
 	"lucky_top_hat": {
 		"display_name": "Lucky Top Hat",
 		"desc": "+40 score and a bit of healing",
-		"color": Color(0.85, 0.7, 0.15),
+		"color": Color("#26221F"),
 		"shape": "top_hat",
 		"kind": "treasure",
 		"amount": 40,

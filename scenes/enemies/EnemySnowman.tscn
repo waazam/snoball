@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/enemies/EnemySnowman.gd" id="1"]
 
@@ -7,8 +7,11 @@ radius = 0.36
 height = 1.5
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_snow"]
-albedo_color = Color(0.95, 0.97, 1, 1)
-roughness = 0.85
+albedo_color = Color(0.918, 0.949, 0.984, 1)
+roughness = 0.92
+rim_enabled = true
+rim = 0.25
+rim_tint = 0.8
 
 [sub_resource type="SphereMesh" id="SphereMesh_bottom"]
 radius = 0.4
@@ -33,7 +36,7 @@ size = Vector2(0.82, 0.14)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bg"]
 shading_mode = 0
-albedo_color = Color(0.05, 0.05, 0.05, 0.7)
+albedo_color = Color(0.067, 0.082, 0.153, 0.7)
 billboard_mode = 2
 transparency = 1
 no_depth_test = true
@@ -43,7 +46,7 @@ size = Vector2(0.8, 0.1)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fill"]
 shading_mode = 0
-albedo_color = Color(0.25, 0.9, 0.35, 1)
+albedo_color = Color(0.91, 0.282, 0.247, 1)
 billboard_mode = 2
 no_depth_test = true
 

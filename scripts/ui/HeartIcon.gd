@@ -5,9 +5,10 @@ extends Control
 ## current health ratio - so it visually drains from the top down as
 ## health drops from 100 to 0, like a liquid gauge.
 
-@export var fill_color: Color = Color(0.88, 0.15, 0.22)
-@export var empty_color: Color = Color(0.32, 0.3, 0.33, 0.55)
-@export var outline_color: Color = Color(0.08, 0.08, 0.12)
+# ART_DIRECTION.md UI palette: health #E8483F, trough #111527, edge #39466E.
+@export var fill_color: Color = Color("#E8483F")
+@export var empty_color: Color = Color(0.223529, 0.27451, 0.431373, 0.55)  # #39466E
+@export var outline_color: Color = Color("#111527")
 @export var outline_width: float = 5.0
 
 const STEPS := 48

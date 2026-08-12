@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/pickups/PresentPickup.gd" id="1"]
 
@@ -8,26 +8,40 @@ radius = 0.7
 [sub_resource type="BoxMesh" id="BoxMesh_body"]
 size = Vector3(0.5, 0.42, 0.5)
 
-[sub_resource type="StandardMaterial3D" id="StdMat_red"]
-albedo_color = Color(0.78, 0.12, 0.14, 1)
+[sub_resource type="StandardMaterial3D" id="StdMat_wrap"]
+albedo_color = Color(0.909804, 0.282353, 0.247059, 1)
+roughness = 0.8
+emission_enabled = true
+emission = Color(0.909804, 0.282353, 0.247059, 1)
+emission_energy_multiplier = 0.5
+
+[sub_resource type="BoxMesh" id="BoxMesh_lid"]
+size = Vector3(0.56, 0.09, 0.56)
 
 [sub_resource type="BoxMesh" id="BoxMesh_ribbonX"]
-size = Vector3(0.58, 0.44, 0.1)
+size = Vector3(0.58, 0.5, 0.085)
 
 [sub_resource type="BoxMesh" id="BoxMesh_ribbonZ"]
-size = Vector3(0.1, 0.44, 0.58)
+size = Vector3(0.085, 0.5, 0.58)
 
-[sub_resource type="StandardMaterial3D" id="StdMat_gold"]
-albedo_color = Color(0.85, 0.68, 0.2, 1)
+[sub_resource type="StandardMaterial3D" id="StdMat_ribbon"]
+albedo_color = Color(0.960784, 0.937255, 0.901961, 1)
+roughness = 0.75
 
-[sub_resource type="BoxMesh" id="BoxMesh_bowLoop"]
-size = Vector3(0.16, 0.09, 0.07)
+[sub_resource type="TorusMesh" id="TorusMesh_bowLoop"]
+inner_radius = 0.025
+outer_radius = 0.07
+rings = 10
+ring_segments = 6
 
-[sub_resource type="BoxMesh" id="BoxMesh_bowKnot"]
-size = Vector3(0.08, 0.08, 0.08)
+[sub_resource type="SphereMesh" id="SphereMesh_bowKnot"]
+radius = 0.05
+height = 0.1
+radial_segments = 8
+rings = 4
 
-[sub_resource type="StandardMaterial3D" id="StdMat_green"]
-albedo_color = Color(0.12, 0.42, 0.18, 1)
+[sub_resource type="BoxMesh" id="BoxMesh_bowTail"]
+size = Vector3(0.07, 0.16, 0.02)
 
 [node name="PresentPickup" type="Area3D"]
 collision_layer = 0
@@ -43,31 +57,48 @@ shape = SubResource("SphereShape3D_1")
 [node name="Body" type="MeshInstance3D" parent="."]
 position = Vector3(0, 0.85, 0)
 mesh = SubResource("BoxMesh_body")
-surface_material_override/0 = SubResource("StdMat_red")
+surface_material_override/0 = SubResource("StdMat_wrap")
+
+[node name="Lid" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.09, 0)
+mesh = SubResource("BoxMesh_lid")
+surface_material_override/0 = SubResource("StdMat_wrap")
 
 [node name="RibbonX" type="MeshInstance3D" parent="."]
-position = Vector3(0, 0.85, 0)
+position = Vector3(0, 0.875, 0)
 mesh = SubResource("BoxMesh_ribbonX")
-surface_material_override/0 = SubResource("StdMat_gold")
+surface_material_override/0 = SubResource("StdMat_ribbon")
 
 [node name="RibbonZ" type="MeshInstance3D" parent="."]
-position = Vector3(0, 0.85, 0)
+position = Vector3(0, 0.875, 0)
 mesh = SubResource("BoxMesh_ribbonZ")
-surface_material_override/0 = SubResource("StdMat_gold")
+surface_material_override/0 = SubResource("StdMat_ribbon")
 
 [node name="BowKnot" type="MeshInstance3D" parent="."]
-position = Vector3(0, 1.1, 0)
-mesh = SubResource("BoxMesh_bowKnot")
-surface_material_override/0 = SubResource("StdMat_green")
+position = Vector3(0, 1.16, 0)
+mesh = SubResource("SphereMesh_bowKnot")
+surface_material_override/0 = SubResource("StdMat_ribbon")
 
 [node name="BowLoopLeft" type="MeshInstance3D" parent="."]
-position = Vector3(-0.09, 1.1, 0)
-rotation_degrees = Vector3(0, 0, 25)
-mesh = SubResource("BoxMesh_bowLoop")
-surface_material_override/0 = SubResource("StdMat_green")
+position = Vector3(-0.08, 1.18, 0)
+rotation_degrees = Vector3(90, 40, 0)
+mesh = SubResource("TorusMesh_bowLoop")
+surface_material_override/0 = SubResource("StdMat_ribbon")
 
 [node name="BowLoopRight" type="MeshInstance3D" parent="."]
-position = Vector3(0.09, 1.1, 0)
-rotation_degrees = Vector3(0, 0, -25)
-mesh = SubResource("BoxMesh_bowLoop")
-surface_material_override/0 = SubResource("StdMat_green")
+position = Vector3(0.08, 1.18, 0)
+rotation_degrees = Vector3(90, -40, 0)
+mesh = SubResource("TorusMesh_bowLoop")
+surface_material_override/0 = SubResource("StdMat_ribbon")
+
+[node name="BowTailLeft" type="MeshInstance3D" parent="."]
+position = Vector3(-0.06, 1.03, 0.265)
+rotation_degrees = Vector3(-8, 0, 14)
+mesh = SubResource("BoxMesh_bowTail")
+surface_material_override/0 = SubResource("StdMat_ribbon")
+
+[node name="BowTailRight" type="MeshInstance3D" parent="."]
+position = Vector3(0.06, 1.03, 0.265)
+rotation_degrees = Vector3(-8, 0, -14)
+mesh = SubResource("BoxMesh_bowTail")
+surface_material_override/0 = SubResource("StdMat_ribbon")

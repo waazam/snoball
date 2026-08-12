@@ -22,11 +22,13 @@ extends Node3D
 @export var bulb_radius: float = 0.028
 @export var wrap_clearance: float = 1.8  # how far proud of the cone surface bulbs sit, as a multiplier
 
+# Art-direction ember family: bulbs alternate EMBER_RED / EMBER_GOLD /
+# EMBER_GREEN (#E8483F / #FFB84D / #4FBF6B) - the warm-lights-against-cool-
+# snow accent channel shared by every domain.
 const COLORS := [
-	Color(0.85, 0.1, 0.12),   # red
-	Color(0.15, 0.55, 0.2),   # green
-	Color(0.9, 0.75, 0.2),    # gold
-	Color(0.25, 0.45, 0.85),  # blue
+	Color(0.91, 0.282, 0.247),  # EMBER_RED #E8483F
+	Color(1.0, 0.722, 0.302),   # EMBER_GOLD #FFB84D
+	Color(0.31, 0.749, 0.42),   # EMBER_GREEN #4FBF6B
 ]
 
 var _bulb_mats: Array = []  # [{mat: StandardMaterial3D, phase: float}]
@@ -50,9 +52,10 @@ func _spawn_bulb(i: int) -> void:
 	var color: Color = COLORS[i % COLORS.size()]
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
+	mat.roughness = 0.5  # emissive-prop convention
 	mat.emission_enabled = true
 	mat.emission = color
-	mat.emission_energy_multiplier = 1.0
+	mat.emission_energy_multiplier = 1.5
 
 	var bulb := MeshInstance3D.new()
 	bulb.mesh = sphere
@@ -65,5 +68,7 @@ func _spawn_bulb(i: int) -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	for b in _bulb_mats:
-		var glow: float = 0.55 + 0.55 * sin(_time * pulse_speed + b["phase"])
-		b["mat"].emission_energy_multiplier = maxf(0.05, glow)
+		# Breathe between ~0.6 and ~2.4 - centered on the prop emission
+		# convention (1.5-2.5) so the bulbs actually catch the bloom pass.
+		var glow: float = 1.5 + 0.9 * sin(_time * pulse_speed + b["phase"])
+		b["mat"].emission_energy_multiplier = maxf(0.3, glow)

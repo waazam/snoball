@@ -13,8 +13,15 @@ extends CanvasLayer
 @onready var health_label: Label = $Root/HealthBar/Label
 @onready var armor_fill: ColorRect = $Root/ArmorBar/Fill
 @onready var armor_label: Label = $Root/ArmorBar/Label
+# Purely decorative badges next to the health/armor bars (HeartIcon.gd /
+# ShieldIcon.gd). Fetched defensively so the HUD still works without them.
+@onready var heart_badge: Control = get_node_or_null("Root/HeartBadge")
+@onready var shield_badge: Control = get_node_or_null("Root/ShieldBadge")
 
 const STAT_FONT_SIZE := 15
+# ART_DIRECTION.md UI palette: text #EAF2FB, outline #111527.
+const STAT_TEXT_COLOR := Color("#EAF2FB")
+const STAT_OUTLINE_COLOR := Color("#111527")
 
 var _toast_timer: float = 0.0
 
@@ -72,12 +79,18 @@ func _update_xp_bar() -> void:
 	xp_level_label.text = "LV %d" % Game.get_level()
 
 func _on_health_changed(current: float, max_health: float) -> void:
-	health_fill.anchor_right = clampf(current / max_health, 0.0, 1.0) if max_health > 0.0 else 0.0
+	var ratio: float = clampf(current / max_health, 0.0, 1.0) if max_health > 0.0 else 0.0
+	health_fill.anchor_right = ratio
 	health_label.text = "%d/%d" % [int(round(current)), int(round(max_health))]
+	if heart_badge != null:
+		heart_badge.set_fill_ratio(ratio)
 
 func _on_armor_changed(current: float, max_armor: float) -> void:
 	armor_fill.anchor_right = clampf(current / max_armor, 0.0, 1.0) if max_armor > 0.0 else 0.0
 	armor_label.text = "%d/%d" % [int(round(current)), int(round(max_armor))]
+	if shield_badge != null:
+		# Dim the shield badge while no armor is banked - purely visual.
+		shield_badge.modulate.a = 1.0 if current > 0.0 else 0.4
 
 func _on_upgrade_picked(title: String) -> void:
 	toast_label.text = "Acquired: %s" % title
@@ -135,7 +148,7 @@ func _add_stat_label(txt: String) -> void:
 	lbl.text = txt
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	lbl.add_theme_font_size_override("font_size", STAT_FONT_SIZE)
-	lbl.add_theme_color_override("font_color", Color(1, 1, 1, 1))
-	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	lbl.add_theme_color_override("font_color", STAT_TEXT_COLOR)
+	lbl.add_theme_color_override("font_outline_color", STAT_OUTLINE_COLOR)
 	lbl.add_theme_constant_override("outline_size", 4)
 	stats_list.add_child(lbl)
