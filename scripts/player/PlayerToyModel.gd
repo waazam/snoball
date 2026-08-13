@@ -47,6 +47,13 @@ const HEAD_LIFT := 0.09  # head-sphere center sits this far above the head bone 
 ## falls back to its static HatAnchor.
 var hat_mount: Node3D = null
 
+## The right arm's mesh parts (upper/forearm segments, joint spheres, cuff,
+## mitten), collected as they're built below - Player.gd hides these and
+## shows its own exaggerated ThrowArmVisual overlay while a throw animation
+## plays, since this arm otherwise only ever reproduces whatever the baked
+## Idle/Jog/Sprint/Jump clips are doing (no throw clip exists to swing it).
+var right_arm_parts: Array[Node3D] = []
+
 var _skeleton: Skeleton3D = null
 # Each: {"mi": MeshInstance3D, "a": int, "b": int, "t": float}
 var _segments: Array[Dictionary] = []
@@ -161,19 +168,24 @@ func _build_body() -> void:
 		var b_upper: int = _bone("DEF-upper_arm." + side)
 		var b_fore: int = _bone("DEF-forearm." + side)
 		var b_hand: int = _bone("DEF-hand." + side)
-		_add_joint_sphere(0.068, coat, b_upper)
-		_add_joint_sphere(0.058, coat, b_fore)
-		_add_segment(_cyl(0.052), coat, b_upper, b_fore, 0.5, 0.04)
-		_add_segment(_cyl(0.048), coat, b_fore, b_hand, 0.5, 0.04)
+		var arm_parts: Array[Node3D] = []
+		arm_parts.append(_add_joint_sphere(0.068, coat, b_upper))
+		arm_parts.append(_add_joint_sphere(0.058, coat, b_fore))
+		arm_parts.append(_add_segment(_cyl(0.052), coat, b_upper, b_fore, 0.5, 0.04))
+		arm_parts.append(_add_segment(_cyl(0.048), coat, b_fore, b_hand, 0.5, 0.04))
 		# Cuff rides the forearm-to-wrist line so it wraps the arm correctly
 		# in any rest pose (a bone-anchored torus would sit axis-aligned).
-		_add_segment(_torus(0.045, 0.085), trim, b_fore, b_hand, 0.94)
+		arm_parts.append(_add_segment(_torus(0.045, 0.085), trim, b_fore, b_hand, 0.94))
 		if b_fore != -1 and b_hand != -1:
 			var fore_o: Vector3 = _skeleton.get_bone_global_rest(b_fore).origin
 			var hand_o: Vector3 = _skeleton.get_bone_global_rest(b_hand).origin
 			var mitten := Node3D.new()
 			mitten.add_child(_part(_sph(0.07, 10), scarf, Vector3.ZERO))
-			_add_anchored(mitten, b_hand, hand_o + (hand_o - fore_o).normalized() * 0.06)
+			arm_parts.append(_add_anchored(mitten, b_hand, hand_o + (hand_o - fore_o).normalized() * 0.06))
+		if side == "R":
+			for p in arm_parts:
+				if p != null:
+					right_arm_parts.append(p)
 
 	# Legs: dark slate pant cylinders with sphere hip/knee joints, fur ring
 	# at each boot top, coal boots extending toward the toes (+Z at rest).
@@ -199,9 +211,9 @@ func _build_body() -> void:
 ## (+overlap so bending joints never open a gap); toruses keep their size.
 ## `t` picks the point along the joint-to-joint line the mesh is pinned to
 ## (0.5 = midpoint; ~1.0 = a wrap ring at the far joint).
-func _add_segment(mesh: Mesh, mat: StandardMaterial3D, bone_a: int, bone_b: int, t: float = 0.5, overlap: float = 0.0) -> void:
+func _add_segment(mesh: Mesh, mat: StandardMaterial3D, bone_a: int, bone_b: int, t: float = 0.5, overlap: float = 0.0) -> MeshInstance3D:
 	if bone_a == -1 or bone_b == -1:
-		return
+		return null
 	var rest_len: float = (_skeleton.get_bone_global_rest(bone_b).origin - _skeleton.get_bone_global_rest(bone_a).origin).length()
 	if mesh is CylinderMesh:
 		(mesh as CylinderMesh).height = rest_len + overlap
@@ -213,24 +225,26 @@ func _add_segment(mesh: Mesh, mat: StandardMaterial3D, bone_a: int, bone_b: int,
 	mi.material_override = mat
 	add_child(mi)
 	_segments.append({"mi": mi, "a": bone_a, "b": bone_b, "t": t})
+	return mi
 
 ## Registers an assembly that follows one bone's full pose, starting from an
 ## axis-aligned rest placement at `rest_origin` (skeleton space).
-func _add_anchored(node: Node3D, bone: int, rest_origin: Vector3) -> void:
+func _add_anchored(node: Node3D, bone: int, rest_origin: Vector3) -> Node3D:
 	if bone == -1:
 		node.free()  # never entered the tree - free immediately, not deferred
-		return
+		return null
 	add_child(node)
 	var local_xf: Transform3D = _skeleton.get_bone_global_rest(bone).affine_inverse() * Transform3D(Basis.IDENTITY, rest_origin)
 	_anchored.append({"node": node, "bone": bone, "xf": local_xf})
+	return node
 
 ## Convenience: a joint sphere pinned to a bone's origin.
-func _add_joint_sphere(radius: float, mat: StandardMaterial3D, bone: int) -> void:
+func _add_joint_sphere(radius: float, mat: StandardMaterial3D, bone: int) -> Node3D:
 	if bone == -1:
-		return
+		return null
 	var joint := Node3D.new()
 	joint.add_child(_part(_sph(radius, 10), mat, Vector3.ZERO))
-	_add_anchored(joint, bone, _skeleton.get_bone_global_rest(bone).origin)
+	return _add_anchored(joint, bone, _skeleton.get_bone_global_rest(bone).origin)
 
 # --- Pose following ---------------------------------------------------------
 func _update_parts() -> void:

@@ -11,6 +11,8 @@ extends Area3D
 const GRAVITY := 9.8
 const SNOWBALL_SCENE_PATH := "res://scenes/weapons/Snowball.tscn"
 const PULSE_SPEED := 6.0  # death ball's flight-time scale "breathing", rad/s
+const SNOW_SPLAT_SCRIPT := preload("res://scripts/world/SnowCap.gd")
+const MAX_SNOW_SPLATS := 6  # caps per-enemy blob count so a long-lived boss doesn't accumulate forever
 
 var velocity: Vector3 = Vector3.ZERO
 var damage: float = 10.0
@@ -195,6 +197,34 @@ func _hit_enemy(body: Node) -> void:
 		push_dir.y = 0.0
 		if push_dir.length() > 0.01:
 			body.apply_knockback(push_dir.normalized() * knockback)
+	_spawn_snow_splat(body)
+
+## Sticks a little cluster of snow blobs onto the enemy at the impact point,
+## parented directly to it so ordinary transform inheritance carries it
+## along for free (same idiom as the procedural decorations every enemy
+## subtype already parents to itself - see EnemySnowman.gd/EnemyYeti.gd) and
+## frees it automatically when the enemy dies, no extra cleanup needed.
+## Reuses SnowCap.gd unmodified (same clumpy squashed-sphere blobs already
+## dusting props/platforms), just scaled down to hit-splat size. Capped per
+## enemy so a long, high-HP fight doesn't pile up an unbounded blob count.
+func _spawn_snow_splat(body: Node) -> void:
+	if not (body is Node3D):
+		return
+	var enemy: Node3D = body
+	var existing := 0
+	for c in enemy.get_children():
+		if c.get_script() == SNOW_SPLAT_SCRIPT:
+			existing += 1
+	if existing >= MAX_SNOW_SPLATS:
+		return
+	var splat := Node3D.new()
+	splat.set_script(SNOW_SPLAT_SCRIPT)
+	splat.cap_radius = 0.15
+	splat.blob_count = 3
+	splat.blob_size_min = 0.045
+	splat.blob_size_max = 0.085
+	splat.position = enemy.to_local(global_position)
+	enemy.add_child(splat)
 
 func _do_splash() -> void:
 	for e in get_tree().get_nodes_in_group("enemies"):

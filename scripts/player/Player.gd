@@ -28,6 +28,20 @@ const SNOWBALL_SCENE_PATH := "res://scenes/weapons/Snowball.tscn"
 const AUTO_THROW_INTERVAL := 0.5  # fixed: 1 primary snowball every 0.5s, always - nothing speeds this up
 const EXTRA_THROW_INTERVAL := 0.35  # extra (level-driven) snowballs fire on their own, faster cadence
 const AUTO_LOCK_HOMING := 3.0
+
+# Exaggerated throw wind-up/whip/recoil/settle poses for right_shoulder
+# (radians) - see _play_throw_animation. The windup snaps instantly (not
+# tweened) exactly like before, since throw_point.global_position is read
+# synchronously right after this fires to spawn the snowball - a tweened
+# lead-in would spawn it from the wrong place. Total tweened time (0.11 +
+# 0.07 + 0.15 = 0.33s) stays under EXTRA_THROW_INTERVAL's 0.35s gap so
+# back-to-back throws don't constantly cut the animation off early.
+const THROW_WINDUP_ROT := Vector3(-1.75, 0.0, 0.4)
+const THROW_RELEASE_ROT := Vector3(1.35, 0.0, -0.55)
+const THROW_RECOIL_ROT := Vector3(-0.2, 0.0, 0.12)
+const THROW_WHIP_TIME := 0.11
+const THROW_RECOIL_TIME := 0.07
+const THROW_SETTLE_TIME := 0.15
 const TARGET_SEARCH_RADIUS := 45.0
 const LOOK_ZONE_MIN_X_RATIO := 0.6  # only the right side of the screen can ever start a look-drag
 
@@ -83,6 +97,8 @@ var dash_dir: Vector3 = Vector3.ZERO
 
 var _is_throwing: bool = false
 var _throw_tween: Tween = null
+var _toy_model: PlayerToyModel = null
+var _throw_arm_visual: Node3D = null
 
 # Camera-look owns exactly one finger at a time, and only ever trusts drag
 # events for the index it personally saw touch down. This is what stops a
@@ -102,6 +118,7 @@ func _ready() -> void:
 	# _build_toy_model upgrades it to the toy head's bone-following mount.
 	_hat_mount = hat_anchor
 	_build_toy_model()
+	_build_throw_arm_visual()
 	dash_charges_left = Game.get_dash_charges()
 	_throw_timer = AUTO_THROW_INTERVAL
 	# Half-interval head start so the first extra volley lands between the
@@ -131,12 +148,99 @@ func _build_toy_model() -> void:
 		return
 	var skeleton := skeletons[0] as Skeleton3D
 	var toy := PlayerToyModel.new()
+	_toy_model = toy
 	skeleton.add_child(toy)
 	# toy built its body in _ready, which already ran inside add_child
 	# above. If the head bone was somehow missing there is no mount - keep
 	# the static scene-authored HatAnchor fallback set in _ready.
 	if toy.hat_mount != null:
 		_hat_mount = toy.hat_mount
+
+## A dedicated visible throw arm (sleeve, cuff, mitten - same palette as
+## PlayerToyModel's real arm), parented to right_shoulder and hidden by
+## default. right_shoulder itself has no mesh of its own (it only ever
+## positioned the invisible ThrowPoint), and the toy body's actual right arm
+## is 100% driven by the baked skeleton (no throw clip exists to swing it) -
+## so without this, _play_throw_animation's wind-up/whip has nothing visible
+## to animate. Shown/hidden opposite PlayerToyModel's right_arm_parts by
+## _set_throw_arm_visible so the two never render at once. Built once here
+## from throw_point's rest local position, since only right_shoulder's own
+## rotation (not this assembly's local geometry) needs to animate per throw.
+func _build_throw_arm_visual() -> void:
+	_throw_arm_visual = Node3D.new()
+	_throw_arm_visual.name = "ThrowArmVisual"
+	_throw_arm_visual.visible = false
+	right_shoulder.add_child(_throw_arm_visual)
+
+	var sleeve_mat := StandardMaterial3D.new()
+	sleeve_mat.albedo_color = PlayerToyModel.COAT_TEAL
+	sleeve_mat.roughness = 0.8
+	var cuff_mat := StandardMaterial3D.new()
+	cuff_mat.albedo_color = PlayerToyModel.TRIM_WHITE
+	cuff_mat.roughness = 0.97
+	var mitten_mat := StandardMaterial3D.new()
+	mitten_mat.albedo_color = PlayerToyModel.SCARF_RED
+	mitten_mat.roughness = 0.8
+
+	var hand_local: Vector3 = throw_point.position
+	var shoulder_origin := Vector3.ZERO
+
+	var sleeve := CylinderMesh.new()
+	sleeve.top_radius = 0.058
+	sleeve.bottom_radius = 0.05
+	sleeve.height = hand_local.length() * 0.85
+	sleeve.radial_segments = 10
+	var sleeve_mi := MeshInstance3D.new()
+	sleeve_mi.mesh = sleeve
+	sleeve_mi.material_override = sleeve_mat
+	sleeve_mi.transform = _oriented_transform(shoulder_origin, hand_local, 0.42)
+	_throw_arm_visual.add_child(sleeve_mi)
+
+	var cuff := TorusMesh.new()
+	cuff.inner_radius = 0.045
+	cuff.outer_radius = 0.085
+	cuff.rings = 14
+	cuff.ring_segments = 6
+	var cuff_mi := MeshInstance3D.new()
+	cuff_mi.mesh = cuff
+	cuff_mi.material_override = cuff_mat
+	cuff_mi.transform = _oriented_transform(shoulder_origin, hand_local, 0.85)
+	_throw_arm_visual.add_child(cuff_mi)
+
+	var mitten := SphereMesh.new()
+	mitten.radius = 0.075
+	mitten.height = 0.15
+	mitten.radial_segments = 10
+	mitten.rings = 6
+	var mitten_mi := MeshInstance3D.new()
+	mitten_mi.mesh = mitten
+	mitten_mi.material_override = mitten_mat
+	mitten_mi.position = hand_local
+	_throw_arm_visual.add_child(mitten_mi)
+
+## Orthonormal transform at a point along from-to-to with local +Y aligned
+## to that direction - same technique PlayerToyModel._segment_transform
+## uses to orient its own radially-symmetric limb meshes.
+func _oriented_transform(from: Vector3, to: Vector3, t: float) -> Transform3D:
+	var dir: Vector3 = to - from
+	var y: Vector3 = dir.normalized() if dir.length_squared() > 0.000001 else Vector3.UP
+	var helper: Vector3 = Vector3.UP if absf(y.dot(Vector3.UP)) < 0.99 else Vector3.RIGHT
+	var x: Vector3 = helper.cross(y).normalized()
+	var z: Vector3 = x.cross(y)
+	return Transform3D(Basis(x, y, z), from.lerp(to, t))
+
+## Shows the dedicated throw-arm overlay and hides the toy model's real
+## right-arm meshes, or vice versa - called at the start of every throw
+## animation (idempotent/self-correcting, so overlapping primary/extra
+## throws restarting the tween never leave things in a half-swapped state)
+## and once more when a throw animation finishes uninterrupted.
+func _set_throw_arm_visible(showing: bool) -> void:
+	if _throw_arm_visual:
+		_throw_arm_visual.visible = showing
+	if _toy_model:
+		for p in _toy_model.right_arm_parts:
+			if is_instance_valid(p):
+				p.visible = not showing
 
 func _on_hat_equipped(hat_id: String) -> void:
 	for c in _hat_mount.get_children():
@@ -285,14 +389,17 @@ func _play_throw_animation() -> void:
 	if _throw_tween and _throw_tween.is_valid():
 		_throw_tween.kill()
 	_is_throwing = true
-	right_shoulder.rotation.x = -1.3
+	_set_throw_arm_visible(true)
+	right_shoulder.rotation = THROW_WINDUP_ROT
 	_throw_tween = create_tween()
-	_throw_tween.tween_property(right_shoulder, "rotation:x", 0.9, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_throw_tween.tween_property(right_shoulder, "rotation:x", 0.0, 0.22).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_throw_tween.finished.connect(_on_throw_anim_finished)
+	_throw_tween.tween_property(right_shoulder, "rotation", THROW_RELEASE_ROT, THROW_WHIP_TIME).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_throw_tween.tween_property(right_shoulder, "rotation", THROW_RECOIL_ROT, THROW_RECOIL_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_throw_tween.tween_property(right_shoulder, "rotation", Vector3.ZERO, THROW_SETTLE_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_throw_tween.tween_callback(_on_throw_anim_finished)
 
 func _on_throw_anim_finished() -> void:
 	_is_throwing = false
+	_set_throw_arm_visible(false)
 
 # --- Movement --------------------------------------------------------------
 func _get_wish_dir() -> Vector3:
