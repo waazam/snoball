@@ -33,15 +33,20 @@ const AUTO_LOCK_HOMING := 3.0
 # (radians) - see _play_throw_animation. The windup snaps instantly (not
 # tweened) exactly like before, since throw_point.global_position is read
 # synchronously right after this fires to spawn the snowball - a tweened
-# lead-in would spawn it from the wrong place. Total tweened time (0.11 +
-# 0.07 + 0.15 = 0.33s) stays under EXTRA_THROW_INTERVAL's 0.35s gap so
-# back-to-back throws don't constantly cut the animation off early.
+# lead-in would spawn it from the wrong place. The whip (the arm swing
+# itself) is deliberately unhurried even though the snowball flies off at
+# full speed the instant it spawns - the arm reads as a smooth, weighty
+# throw rather than a twitchy blur, while the ball's actual travel speed is
+# untouched. Recoil/settle were trimmed to compensate so the total tweened
+# time (0.17 + 0.08 + 0.10 = 0.35s) still stays at/under EXTRA_THROW_
+# INTERVAL's 0.35s gap, so back-to-back throws don't constantly cut the
+# animation off early.
 const THROW_WINDUP_ROT := Vector3(-1.75, 0.0, 0.4)
 const THROW_RELEASE_ROT := Vector3(1.35, 0.0, -0.55)
 const THROW_RECOIL_ROT := Vector3(-0.2, 0.0, 0.12)
-const THROW_WHIP_TIME := 0.11
-const THROW_RECOIL_TIME := 0.07
-const THROW_SETTLE_TIME := 0.15
+const THROW_WHIP_TIME := 0.17
+const THROW_RECOIL_TIME := 0.08
+const THROW_SETTLE_TIME := 0.10
 const TARGET_SEARCH_RADIUS := 45.0
 const LOOK_ZONE_MIN_X_RATIO := 0.6  # only the right side of the screen can ever start a look-drag
 

@@ -27,11 +27,29 @@ const CONFETTI_COUNT := 22
 const CONFETTI_SPEED_MIN := 2.0
 const CONFETTI_SPEED_MAX := 5.5
 
+# Throw gesture played on every attack (see _play_throw_gesture), reusing
+# the player's wind-up/whip/recoil/settle beat (Player.gd's
+# _play_throw_animation) but on right_shoulder's rotation:z specifically -
+# never :x - so it never fights Enemy.gd's base run-cycle, which drives
+# left_shoulder/right_shoulder's rotation.x every physics frame (same
+# reasoning as EnemySanta.gd's _play_cast_gesture). Comfortably shorter
+# than the thrower's 1.6s attack_cooldown so it always finishes well before
+# the next throw.
+const THROW_ARM_WINDUP_Z := -0.85
+const THROW_ARM_RELEASE_Z := 1.5
+const THROW_ARM_RECOIL_Z := -0.15
+const THROW_ARM_WINDUP_TIME := 0.12
+const THROW_ARM_WHIP_TIME := 0.14
+const THROW_ARM_RECOIL_TIME := 0.08
+const THROW_ARM_SETTLE_TIME := 0.16
+
 # Master-palette colors (hex comments are the normative values).
 const TUNIC_GREEN := Color(0.18, 0.49, 0.275)   # elf green #2E7D46
 const STRIPE_WHITE := Color(0.961, 0.937, 0.902)  # trim #F5EFE6
 const MITTEN_RED := Color(0.91, 0.282, 0.247)   # EMBER_RED #E8483F
 const BUCKLE_GOLD := Color(1.0, 0.722, 0.302)   # EMBER_GOLD #FFB84D
+
+var _throw_arm_tween: Tween = null
 
 func _ready() -> void:
 	super._ready()
@@ -46,6 +64,31 @@ func setup(id: String, wave: int) -> void:
 	_body_base_color = TUNIC_GREEN
 	_body_mat.albedo_color = TUNIC_GREEN
 	_body_mat.roughness = 0.8
+
+## Overrides Enemy.gd's _attack purely to layer the throw-arm flourish on
+## top - super._attack still does the actual work (is_ranged is always true
+## for the thrower, so this always resolves to _throw_at spawning the
+## snowball), same "fire, then flourish alongside it" beat EnemySanta.gd's
+## _fire_laser/_play_cast_gesture already uses instead of gating the throw
+## on the gesture finishing first.
+func _attack(player: Node3D) -> void:
+	super._attack(player)
+	_play_throw_gesture()
+
+## Wind-up/whip/recoil/settle swing of the right arm, mirroring the
+## player's own throw beat (Player.gd's _play_throw_animation) so the elf
+## reads as actually hurling the snowball instead of just standing still
+## while one appears at its ThrowPoint.
+func _play_throw_gesture() -> void:
+	if right_shoulder == null:
+		return
+	if _throw_arm_tween and _throw_arm_tween.is_valid():
+		_throw_arm_tween.kill()
+	_throw_arm_tween = create_tween()
+	_throw_arm_tween.tween_property(right_shoulder, "rotation:z", THROW_ARM_WINDUP_Z, THROW_ARM_WINDUP_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_throw_arm_tween.tween_property(right_shoulder, "rotation:z", THROW_ARM_RELEASE_Z, THROW_ARM_WHIP_TIME).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_throw_arm_tween.tween_property(right_shoulder, "rotation:z", THROW_ARM_RECOIL_Z, THROW_ARM_RECOIL_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_throw_arm_tween.tween_property(right_shoulder, "rotation:z", 0.0, THROW_ARM_SETTLE_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 func _build_outfit() -> void:
 	# White collar ring where the head meets the tunic.
