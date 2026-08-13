@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/MainMenu.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/ui/Wallpaper.gd" id="2"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/ui/NightSky.gd" id="4"]
 [ext_resource type="Script" path="res://scripts/ui/FallingSnow.gd" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/ui/SnowballMenu.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/ui/SettingsMenu.tscn" id="7"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_primary_normal"]
 bg_color = Color(0.117647, 0.152941, 0.258824, 0.92)
@@ -223,13 +224,31 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_secondary_pressed")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 text = "Snowballs"
 
-[node name="QuitButton" type="Button" parent="Root"]
+[node name="SettingsButton" type="Button" parent="Root"]
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -140.0
 offset_top = 516.0
 offset_right = 140.0
-offset_bottom = 562.0
+offset_bottom = 566.0
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.560784, 0.639216, 0.784314, 1)
+theme_override_colors/font_hover_color = Color(0.917647, 0.94902, 0.984314, 1)
+theme_override_colors/font_pressed_color = Color(0.917647, 0.94902, 0.984314, 1)
+theme_override_colors/font_focus_color = Color(0.560784, 0.639216, 0.784314, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_secondary_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_secondary_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_secondary_pressed")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "Settings"
+
+[node name="QuitButton" type="Button" parent="Root"]
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -140.0
+offset_top = 582.0
+offset_right = 140.0
+offset_bottom = 628.0
 theme_override_font_sizes/font_size = 20
 theme_override_colors/font_color = Color(0.560784, 0.639216, 0.784314, 1)
 theme_override_colors/font_hover_color = Color(0.917647, 0.94902, 0.984314, 1)
@@ -261,3 +280,5 @@ vertical_alignment = 2
 autowrap_mode = 2
 
 [node name="SnowballMenu" parent="." instance=ExtResource("6")]
+
+[node name="SettingsMenu" parent="." instance=ExtResource("7")]

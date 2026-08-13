@@ -5,8 +5,8 @@ extends Node
 ## so HUD.gd's pause-mute still silences whichever track is currently
 ## playing.
 
-const MENU_TRACK_PATH := "res://audio/MainMenu.mp3"
-const GAMEPLAY_TRACK_PATH := "res://audio/Menthall.mp3"
+const MENU_TRACK_PATH := "res://audio/MainMenu.ogg"
+const GAMEPLAY_TRACK_PATH := "res://audio/Menthall.ogg"
 const MENU_VOLUME_DB := -16.0
 const GAMEPLAY_VOLUME_DB := -6.0
 
@@ -28,9 +28,14 @@ func _on_state_changed(new_state: int) -> void:
 	_current_path = path
 	# Not `const X := preload(...)` - GDScript won't let you assign a
 	# property (.loop below) through a const reference even though the
-	# underlying Resource is mutable.
+	# underlying Resource is mutable. Ogg Vorbis, not MP3 - Godot's built-in
+	# MP3 decoder is prone to audible crackling on VBR-encoded MP3s (which
+	# MainMenu's original export was, LAME/Xing header with hundreds of
+	# bitrate switches - reproducible even in isolation from any project
+	# code), so both tracks were re-exported as Vorbis to sidestep that
+	# decoder entirely.
 	var track: AudioStream = load(path)
-	if track is AudioStreamMP3:
+	if track is AudioStreamOggVorbis:
 		track.loop = true
 	_player.stream = track
 	_player.play()

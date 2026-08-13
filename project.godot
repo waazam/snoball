@@ -24,6 +24,7 @@ EnemyDB="*res://scripts/autoload/EnemyDB.gd"
 UpgradeDB="*res://scripts/autoload/UpgradeDB.gd"
 HatDB="*res://scripts/autoload/HatDB.gd"
 GroundTrail="*res://scripts/autoload/GroundTrail.gd"
+Settings="*res://scripts/autoload/Settings.gd"
 Music="*res://scripts/autoload/Music.gd"
 
 [display]

@@ -47,5 +47,6 @@ const EASTER_EGGS := [
 func _ready() -> void:
 	$Root/StartButton.pressed.connect(func(): emit_signal("start_pressed"))
 	$Root/SnowballsButton.pressed.connect(func(): $SnowballMenu.open())
+	$Root/SettingsButton.pressed.connect(func(): $SettingsMenu.open())
 	$Root/QuitButton.pressed.connect(func(): get_tree().quit())
 	$Root/EasterEgg.text = EASTER_EGGS[randi() % EASTER_EGGS.size()]
