@@ -2,8 +2,8 @@ extends Node3D
 ## Shared visual-only "reward glow" dressing for ground pickups: a soft
 ## emissive ground ring plus a few orbiting diamond glints that twinkle.
 ## Pure decoration - no collision, no gameplay values, no timers anything
-## reads - attached by HatPickup/PresentPickup/SwordPickup via set_script(),
-## the same spawn idiom DamageNumber.gd/ConfettiPiece.gd use.
+## reads - attached by HatPickup/SwordPickup via set_script(), the same
+## spawn idiom DamageNumber.gd/ConfettiPiece.gd use.
 ##
 ## The ring pins its own global height to a fixed ground level each frame so
 ## the parent pickup's bob (and collect-shrink tween) doesn't lift it off

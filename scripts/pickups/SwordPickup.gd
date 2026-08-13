@@ -22,7 +22,7 @@ var _collected: bool = false
 var _mound: Node3D
 
 func _ready() -> void:
-	add_to_group("present_pickups")  # same cleanup group PresentPickup uses - WaveManager.clear_all_enemies sweeps it
+	add_to_group("present_pickups")  # ground-pickup cleanup group - WaveManager.clear_all_enemies sweeps it
 	_bob_time = randf() * TAU
 	rotate_y(randf() * TAU)
 	monitoring = true
