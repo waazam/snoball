@@ -52,6 +52,12 @@ position = Vector3(-0.42, 1.25, 0)
 [node name="RightShoulder" type="Node3D" parent="."]
 position = Vector3(0.42, 1.25, 0)
 
+[node name="LeftHip" type="Node3D" parent="."]
+position = Vector3(-0.24, 0.42, -0.05)
+
+[node name="RightHip" type="Node3D" parent="."]
+position = Vector3(0.24, 0.42, -0.05)
+
 [node name="ThrowPoint" type="Marker3D" parent="."]
 position = Vector3(0, 1.1, -0.3)
 

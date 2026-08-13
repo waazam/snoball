@@ -1,19 +1,25 @@
 extends "res://scripts/enemies/Enemy.gd"
 ## Santa Claus, the round-10 boss - the largest enemy in the game. Doesn't
 ## melee or throw snowballs: his ranged "attack" fires a pulsating red laser
-## from each eye at the player's position, dealing a direct hit if they're
-## still near the impact point plus leaving a burning AoE patch on the
-## ground there (see LaserBeam.gd/BurnPatch.gd). He's also permanently
-## wrapped in a swirling snowstorm that follows him everywhere - stand too
-## close and it launches you into the air like a tornado (see
-## _update_snowstorm below; needs Player.gd's apply_external_velocity,
-## since nothing else in this game knocks the player around).
+## from each eye at the player's position (with an arm-raise casting
+## flourish, see _play_cast_gesture), dealing a direct hit if they're still
+## near the impact point plus leaving a burning AoE patch on the ground
+## there (see LaserBeam.gd/BurnPatch.gd). He's also permanently wrapped in a
+## swirling snowstorm/blizzard that follows him everywhere - crystalline ice
+## shards tumble through it alongside the soft snow rings (see
+## _build_storm_shards/_update_snowstorm) - and stand too close and it
+## launches you into the air like a tornado (needs Player.gd's
+## apply_external_velocity, since nothing else in this game knocks the
+## player around).
 ##
-## Body/collision/health bar/throw point/shoulder pivots are hand-placed in
-## EnemySanta.tscn (throw_point exists only because Enemy.gd's @onready var
-## requires it - never actually used since _attack is fully overridden);
-## every other part (coat trim, belt, buckle, beard, face, hat, boots,
-## sleeves) is built here in code, same split EnemySnowman.gd uses.
+## Body/collision/health bar/throw point/shoulder+hip pivots are hand-placed
+## in EnemySanta.tscn (throw_point exists only because Enemy.gd's @onready
+## var requires it - never actually used since _attack is fully overridden;
+## the shoulder/hip pivots are what let Enemy.gd's base run-cycle animation
+## swing his arms/legs automatically while he's moving, same mechanism
+## EnemyElf.gd relies on - see _build_arms/_build_boots); every other part
+## (coat trim, belt, buckle, beard, face, hat, boots, sleeves) is built here
+## in code, same split EnemySnowman.gd uses.
 ##
 ## Colors/materials follow ART_DIRECTION.md ("Alpenglow Dusk", sections 3/4/
 ## 6d): deep suit red #C42B2B cloth, #F5EFE6 fur trim, coal #26221F belt with
@@ -44,6 +50,7 @@ const BELT_Y := 0.68
 const BELT_RADIUS := 0.56
 const HEAD_Y := 1.63
 const HEAD_RADIUS := 0.26
+const HIP_Y := 0.42  # LeftHip/RightHip pivot height, hand-placed in EnemySanta.tscn - see _build_boots
 
 const BEAM_HIT_RADIUS := 1.5
 const BURN_RADIUS := 2.2
@@ -57,15 +64,36 @@ const STORM_UP_SPEED := 16.0
 const STORM_OUT_SPEED := 9.0
 const STORM_SPIN_SPEED := 1.4
 
+# Ice shards swirling through the snowstorm - crystalline spikes, distinct
+# from the soft puff quads the outer/inner rings already use, orbiting at
+# their own radius/speed plus an individual per-shard tumble.
+const SHARD_COUNT := 8
+const SHARD_RADIUS := STORM_VISUAL_RADIUS * 0.85
+const SHARD_COLOR := Color(0.659, 0.894, 1.0)  # FX_FREEZE #A8E4FF, matches STORM_INNER_COLOR's hue
+const SHARD_ORBIT_SPEED := STORM_SPIN_SPEED * 1.2
+const SHARD_SPIN_SPEED := 2.2
+
+# Arm-raise "casting" flourish played alongside the eye-laser pulse (see
+# _pulse_eyes/_play_cast_gesture) - rotation:z specifically, never :x, so it
+# never fights Enemy.gd's base run-cycle (_update_animation only ever
+# touches left_shoulder/right_shoulder's rotation.x).
+const CAST_ARM_Z := 1.3
+const CAST_RAISE_TIME := 0.15
+const CAST_HOLD_TIME := 0.25
+const CAST_LOWER_TIME := 0.3
+
 var _eye_left: MeshInstance3D
 var _eye_right: MeshInstance3D
 var _eye_left_mat: StandardMaterial3D
 var _eye_right_mat: StandardMaterial3D
 var _storm_outer: Node3D
 var _storm_inner: Node3D
+var _storm_shards: Node3D
+var _shard_meshes: Array[MeshInstance3D] = []
 var _storm_launch_timer: float = 0.0
 var _hat_flop: Node3D
 var _sway_time: float = 0.0
+var _cast_tween: Tween = null
 
 func _ready() -> void:
 	super._ready()
@@ -112,6 +140,7 @@ func _fire_laser(player: Node3D) -> void:
 		get_tree().current_scene.add_child(beam)
 		beam.setup(eye.global_position, impact)
 	_pulse_eyes()
+	_play_cast_gesture()
 	if player.global_position.distance_to(impact) <= BEAM_HIT_RADIUS and player.has_method("take_hit"):
 		player.take_hit(damage)
 	_spawn_burn_patch(impact)
@@ -131,6 +160,26 @@ func _pulse_eyes() -> void:
 		tw.tween_property(eye_mat, "emission_energy_multiplier", 5.0, 0.08)
 		tw.tween_property(eye_mat, "emission_energy_multiplier", 2.5, 0.5)
 
+## Both arms thrown up and out for the laser cast, held a beat, then lowered
+## back to rest - on rotation:z specifically (see CAST_ARM_Z's comment
+## above) so it never fights the base run-cycle's rotation:x walk-swing on
+## these same LeftShoulder/RightShoulder pivots, even if he's still
+## finishing a step when he stops to fire. Comfortably shorter than
+## attack_cooldown (2.4s) so it always finishes well before the next cast.
+func _play_cast_gesture() -> void:
+	if left_shoulder == null or right_shoulder == null:
+		return
+	if _cast_tween and _cast_tween.is_valid():
+		_cast_tween.kill()
+	_cast_tween = create_tween()
+	_cast_tween.set_parallel(true)
+	_cast_tween.tween_property(left_shoulder, "rotation:z", -CAST_ARM_Z, CAST_RAISE_TIME).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_cast_tween.tween_property(right_shoulder, "rotation:z", CAST_ARM_Z, CAST_RAISE_TIME).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_cast_tween.chain().tween_interval(CAST_HOLD_TIME)
+	_cast_tween.set_parallel(true)
+	_cast_tween.tween_property(left_shoulder, "rotation:z", 0.0, CAST_LOWER_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_cast_tween.tween_property(right_shoulder, "rotation:z", 0.0, CAST_LOWER_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
 # --- Snowstorm aura: follows him, launches the player if they get close --
 func _build_snowstorm() -> void:
 	_storm_outer = Node3D.new()
@@ -142,6 +191,42 @@ func _build_snowstorm() -> void:
 	_storm_inner.name = "StormInner"
 	add_child(_storm_inner)
 	_add_storm_ring(_storm_inner, STORM_VISUAL_RADIUS * 0.62, 10, 0.075, STORM_INNER_COLOR)
+
+	_build_storm_shards()
+
+## Crystalline ice shards swirling through the snowstorm, distinct from the
+## soft puff quads above - each one tumbles on its own local axis
+## (_update_snowstorm) on top of orbiting with the whole ring, for a
+## sparkling "blizzard" read rather than just drifting snow.
+func _build_storm_shards() -> void:
+	_storm_shards = Node3D.new()
+	_storm_shards.name = "StormShards"
+	add_child(_storm_shards)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(SHARD_COLOR.r, SHARD_COLOR.g, SHARD_COLOR.b, 0.85)
+	mat.roughness = 0.05
+	mat.metallic = 0.1
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.emission_enabled = true
+	mat.emission = SHARD_COLOR
+	mat.emission_energy_multiplier = 0.6
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.disable_receive_shadows = true
+	for i in SHARD_COUNT:
+		var a: float = (TAU / SHARD_COUNT) * i
+		var shard := CylinderMesh.new()
+		shard.top_radius = 0.0
+		shard.bottom_radius = 0.045
+		shard.height = 0.22
+		shard.radial_segments = 5
+		var mi := MeshInstance3D.new()
+		mi.mesh = shard
+		mi.material_override = mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.position = Vector3(cos(a) * SHARD_RADIUS, randf_range(0.15, 0.75), sin(a) * SHARD_RADIUS)
+		mi.rotation_degrees = Vector3(randf_range(-30.0, 30.0), 0.0, 90.0 + randf_range(-20.0, 20.0))
+		_storm_shards.add_child(mi)
+		_shard_meshes.append(mi)
 
 func _add_storm_ring(parent: Node3D, radius: float, count: int, puff_size: float, color: Color) -> void:
 	var mat := StandardMaterial3D.new()
@@ -165,6 +250,9 @@ func _add_storm_ring(parent: Node3D, radius: float, count: int, puff_size: float
 func _update_snowstorm(delta: float) -> void:
 	_storm_outer.rotate_y(delta * STORM_SPIN_SPEED)
 	_storm_inner.rotate_y(-delta * STORM_SPIN_SPEED * 1.6)
+	_storm_shards.rotate_y(delta * SHARD_ORBIT_SPEED)
+	for shard in _shard_meshes:
+		shard.rotate_x(delta * SHARD_SPIN_SPEED)
 	# Purely-visual hat sway, riding the same per-frame hook (no allocations).
 	_sway_time += delta
 	if _hat_flop:
@@ -300,12 +388,23 @@ func _build_arms() -> void:
 		_style(_add_cylinder(Vector3(0, -0.52, 0), Vector3.ZERO, 0.135, 0.135, 0.08, SUIT_TRIM_COLOR, shoulder), 0.95)
 		_style(_add_sphere(Vector3(0, -0.62, 0), 0.11, MITTEN_COLOR, shoulder), 0.8)
 
+## Boots hang off the LeftHip/RightHip pivots (hand-placed in
+## EnemySanta.tscn - same "must exist before this script's _ready() body
+## runs so Enemy.gd's @onready lookup finds them" requirement _build_arms
+## explains for the shoulders above) so the base run-cycle animation swings
+## his feet forward/back while he's moving. Previously built with no pivot
+## at all, so his big round coat/belly stayed put but his feet never
+## visibly stepped - the round torso still covers the hip pivots themselves,
+## only the boots poke out and move.
 func _build_boots() -> void:
 	for side in [-1, 1]:
-		var mi := _add_sphere(Vector3(0.24 * side, 0.16, -0.05), 0.22, BOOT_COLOR)
+		var hip: Node3D = left_hip if side < 0 else right_hip
+		if hip == null:
+			continue
+		var mi := _add_sphere(Vector3(0, 0.16 - HIP_Y, 0), 0.22, BOOT_COLOR, hip)
 		mi.scale = Vector3(1.0, 0.7, 1.3)
 		_style(mi, 0.8)
-		_style(_add_cylinder(Vector3(0.24 * side, 0.32, -0.05), Vector3.ZERO, 0.13, 0.15, 0.08, SUIT_TRIM_COLOR), 0.95)
+		_style(_add_cylinder(Vector3(0, 0.32 - HIP_Y, 0), Vector3.ZERO, 0.13, 0.15, 0.08, SUIT_TRIM_COLOR, hip), 0.95)
 
 ## The one dedicated boss OmniLight (ART_DIRECTION section 6d): signature
 ## EMBER_RED, range 5, energy 1.2, never shadowed (web-export budget).
