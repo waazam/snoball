@@ -4,10 +4,15 @@ extends "res://scripts/enemies/Enemy.gd"
 ## parts (3 coal buttons, its carrot nose, 2 coal eyes, then its top hat
 ## last) and throws exactly one per attack tick, in that order, visually
 ## losing the corresponding part each time so its body reads as getting
-## stripped down. Once the top hat is gone it has nothing left to throw,
-## so instead of attacking again it detonates - a medium-radius explosion
-## that damages the player if they're in range and kills the snowman
-## outright.
+## stripped down. Each throw is a two-part animation on one of its twig
+## arms (_wind_up_and_throw) - reach up as if gripping the next part off
+## its own body, then whip forward and release - and the part itself lobs
+## in an arc to a ground point near the player rather than a direct hit,
+## bursting there in an alternating red/green/gold AoE blast (see
+## BURST_COLORS/_launch_part/_spawn_ground_burst). The last part (the top
+## hat) gets a much bigger burst, and its resolution chains straight into
+## _detonate() - the snowman's own self-destruct explosion - instead of
+## waiting for one more idle attack tick once it's out of parts.
 ##
 ## The body's three snowball tiers, collision, health bar and throw point
 ## are hand-placed in EnemySnowman.tscn like the elf/reindeer rigs; every
@@ -38,13 +43,34 @@ const TRIM_WHITE := Color(0.961, 0.937, 0.902)   # trim #F5EFE6
 const HOLLY_GREEN := Color(0.227, 0.42, 0.259)   # PINE_LIT #3A6B42
 const PIPE_STEM_COLOR := Color(0.29, 0.2, 0.145) # WOOD_BARK #4A3325
 const PIPE_BOWL_COLOR := Color(0.851, 0.776, 0.659)  # warm tan #D9C6A8
+const EMBER_GOLD := Color(1.0, 0.721569, 0.301961)   # EMBER_GOLD #FFB84D
 
 const HEAD_Y := 1.35
 const HEAD_RADIUS := 0.22
 
 const EXPLOSION_RADIUS := 3.0
 const EXPLOSION_DAMAGE_MULT := 1.5  # relative to `damage`, so wave-scaling still applies
-const THROW_SPEED := 15.0
+
+# Ground-burst colors each thrown part explodes in, cycling by throw index
+# (SCARF_RED/HOLLY_GREEN/EMBER_GOLD are already-established palette colors -
+# reused here rather than inventing new ones) - independent of the part's
+# own color, which the flying object itself still carries.
+const BURST_COLORS: Array[Color] = [SCARF_RED, HOLLY_GREEN, EMBER_GOLD]
+const BURST_RADIUS := 2.2
+const BURST_DAMAGE_MULT := 0.65   # relative to `damage`, per normal throw - an AoE lands more easily than the old direct hit did, so it hits softer
+const FINAL_BURST_RADIUS := 4.2   # the top hat's finale burst - see _launch_part
+const FINAL_BURST_DAMAGE_MULT := 1.6
+const THROW_ARC_HEIGHT := 2.2
+const FINAL_ARC_HEIGHT := 3.2
+const FLIGHT_TIME := 0.5
+const FINAL_FLIGHT_TIME := 0.65
+
+# Wind-up/throw/return timings for _wind_up_and_throw - kept comfortably
+# under the snowman's 1.4s attack_cooldown (EnemyDB.gd) so consecutive
+# attacks never cut an in-progress arm animation short.
+const WINDUP_TIME := 0.18
+const THROW_TIME := 0.12
+const RETURN_TIME := 0.22
 
 # Filled in _ready(): [{"part": Node3D, "color": Color}, ...] in throw order
 # (buttons top-to-bottom, then carrot, then eyes, then hat last).
@@ -52,6 +78,13 @@ var _ammo: Array = []
 var _throw_index: int = 0
 var _detonated: bool = false
 var _hat_color: Color = HAT_COLOR  # per-instance variation, picked in _build_face_and_hat()
+
+# Shoulder pivots saved off _build_arms() so _wind_up_and_throw can tween
+# them - see that function's own comment for why they're safe to animate
+# freely (named so Enemy.gd's base run-cycle never touches them).
+var _arm_left: Node3D
+var _arm_right: Node3D
+var _arm_tween: Tween
 
 func _ready() -> void:
 	super._ready()
@@ -251,6 +284,10 @@ func _build_arms() -> void:
 		shoulder.position = Vector3(0.34 * side, 0.98, 0)
 		shoulder.rotation_degrees = Vector3(0, 0, 40 * side)
 		add_child(shoulder)
+		if side < 0:
+			_arm_left = shoulder
+		else:
+			_arm_right = shoulder
 
 		var stick := CylinderMesh.new()
 		stick.top_radius = 0.018
@@ -310,27 +347,98 @@ func _build_arms() -> void:
 
 ## Overrides Enemy.gd's normal melee-or-repeat-throw behavior entirely -
 ## one body part per attack tick, in order, then detonate once the ammo
-## list is empty.
+## list is empty (a fallback only - the last/hat throw normally chains
+## straight into _detonate() itself once its burst resolves, see
+## _resolve_ground_burst, so this branch shouldn't fire in the normal case).
 func _attack(player: Node3D) -> void:
 	if _detonated:
 		return
 	if _throw_index >= _ammo.size():
 		_detonate()
 		return
-	_throw_part(player, _ammo[_throw_index])
+	var index := _throw_index
 	_throw_index += 1
+	_wind_up_and_throw(player, _ammo[index], index)
 
-func _throw_part(player: Node3D, part_data: Dictionary) -> void:
+## Wind-up (the throwing arm reaches up and across the body, as if
+## gripping the next part off itself), throw (whips forward and releases -
+## _launch_part fires exactly at the top of this leg, so the part visibly
+## leaves the hand mid-swing), then a return to the resting pose. Alternates
+## left/right arm by throw index purely for visual variety - every part is
+## central or symmetric enough that either arm reads fine grabbing it.
+func _wind_up_and_throw(player: Node3D, part_data: Dictionary, index: int) -> void:
+	var arm: Node3D = _arm_left if index % 2 == 0 else _arm_right
+	if not is_instance_valid(arm):
+		_launch_part(player, part_data, index)
+		return
+	var side: float = -1.0 if arm == _arm_left else 1.0
+	var rest := Vector3(0.0, 0.0, 40.0 * side)
+	var windup := Vector3(-100.0, 0.0, 15.0 * side)
+	var release := Vector3(80.0, 0.0, 55.0 * side)
+
+	if _arm_tween and _arm_tween.is_valid():
+		_arm_tween.kill()
+	arm.rotation_degrees = rest
+	_arm_tween = create_tween()
+	_arm_tween.tween_property(arm, "rotation_degrees", windup, WINDUP_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_arm_tween.tween_property(arm, "rotation_degrees", release, THROW_TIME).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	_arm_tween.tween_callback(_launch_part.bind(player, part_data, index))
+	_arm_tween.tween_property(arm, "rotation_degrees", rest, RETURN_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+## Fires the given ammo part on a lobbed arc toward a ground point near the
+## player - not a direct hit, it's meant to land and burst in an AoE, so a
+## little jitter keeps it dodgeable even after the wind-up telegraph. Owns
+## its own tween on the flying mesh (not on self) so an already-airborne
+## part still lands and bursts even if the snowman dies to other damage
+## mid-flight. The final ammo item (the hat) flies bigger/slower/higher for
+## extra drama and its burst is what actually triggers _detonate().
+func _launch_part(player: Node3D, part_data: Dictionary, index: int) -> void:
 	var part_node: Node3D = part_data["part"]
+	var start: Vector3 = part_node.global_position if is_instance_valid(part_node) else throw_point.global_position
 	if is_instance_valid(part_node):
 		part_node.visible = false
-	var scene: PackedScene = load(SNOWBALL_SCENE_PATH)
-	var sb: Area3D = scene.instantiate()
-	get_tree().current_scene.add_child(sb)
-	sb.global_position = throw_point.global_position
-	var dir: Vector3 = (player.global_position + Vector3.UP * 0.9 - throw_point.global_position).normalized()
-	var stats := {"damage": damage, "speed": THROW_SPEED, "gravity_scale": 0.7, "radius": 0.16, "pierce": 1}
-	sb.setup(dir, stats, false, part_data["color"])
+	if not is_instance_valid(player):
+		return
+
+	var is_final: bool = index == _ammo.size() - 1
+	var jitter := Vector3(randf_range(-0.6, 0.6), 0.0, randf_range(-0.6, 0.6))
+	var target: Vector3 = Vector3(player.global_position.x, 0.05, player.global_position.z) + jitter
+	var radius: float = FINAL_BURST_RADIUS if is_final else BURST_RADIUS
+	var dmg_mult: float = FINAL_BURST_DAMAGE_MULT if is_final else BURST_DAMAGE_MULT
+	var arc_height: float = FINAL_ARC_HEIGHT if is_final else THROW_ARC_HEIGHT
+	var flight_time: float = FINAL_FLIGHT_TIME if is_final else FLIGHT_TIME
+	var color: Color = BURST_COLORS[index % BURST_COLORS.size()]
+
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.2 if is_final else 0.13
+	mesh.height = mesh.radius * 2.0
+	mesh.radial_segments = 8
+	mesh.rings = 5
+	var flying := MeshInstance3D.new()
+	flying.mesh = mesh
+	flying.material_override = _make_mat(part_data["color"], 0.7)
+	get_tree().current_scene.add_child(flying)
+	flying.global_position = start
+
+	var tw := flying.create_tween()
+	tw.tween_method(_update_flight_position.bind(flying, start, target, arc_height), 0.0, 1.0, flight_time)
+	tw.tween_callback(_resolve_ground_burst.bind(player, target, color, radius, dmg_mult, is_final))
+	tw.tween_callback(flying.queue_free)
+
+func _update_flight_position(t: float, mesh: Node3D, start: Vector3, target: Vector3, arc_height: float) -> void:
+	if not is_instance_valid(mesh):
+		return
+	var pos: Vector3 = start.lerp(target, t)
+	pos.y += sin(t * PI) * arc_height
+	mesh.global_position = pos
+
+## Where a thrown part actually lands: one distance-gated hit on the player
+## if they're still standing in the blast, then the colored ground burst.
+## The final (hat) burst's on_complete chains straight into _detonate().
+func _resolve_ground_burst(player: Node3D, pos: Vector3, color: Color, radius: float, dmg_mult: float, is_final: bool) -> void:
+	if is_instance_valid(player) and player.global_position.distance_to(pos) <= radius and player.has_method("take_hit"):
+		player.take_hit(damage * dmg_mult)
+	_spawn_ground_burst(pos, color, radius, _detonate if is_final else Callable())
 
 ## Out of body parts to throw - goes out in a medium-radius blast instead
 ## of attacking again. Only the player is checked (matches the prompt:
@@ -372,3 +480,35 @@ func _spawn_explosion_fx() -> void:
 	tw.tween_property(mi, "scale", Vector3.ONE * EXPLOSION_RADIUS, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_property(mat, "albedo_color:a", 0.0, 0.35)
 	tw.chain().tween_callback(mi.queue_free)
+
+## One thrown part's ground-impact burst: an expanding, fading colored puff
+## at the landing point - same "own tween on the puff itself, added to
+## current_scene" idiom as _spawn_explosion_fx above, just colorized
+## (BURST_COLORS, cycled by throw index in _launch_part) and radius-scaled
+## per throw. on_complete (only wired for the final/hat throw, straight
+## into _detonate) fires once the puff finishes playing, so the finale
+## reads as one continuous escalation rather than an extra idle attack tick.
+func _spawn_ground_burst(pos: Vector3, color: Color, radius: float, on_complete: Callable = Callable()) -> void:
+	var mesh := SphereMesh.new()
+	mesh.radius = 1.0
+	mesh.height = 2.0
+	mesh.radial_segments = 12
+	mesh.rings = 6
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(color.r, color.g, color.b, 0.85)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mi.material_override = mat
+	get_tree().current_scene.add_child(mi)
+	mi.global_position = pos + Vector3.UP * 0.15
+	mi.scale = Vector3.ZERO
+	var tw := mi.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(mi, "scale", Vector3.ONE * radius, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(mat, "albedo_color:a", 0.0, 0.3)
+	tw.chain().tween_callback(mi.queue_free)
+	if on_complete.is_valid():
+		tw.tween_callback(on_complete)
