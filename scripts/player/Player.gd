@@ -50,6 +50,16 @@ const THROW_SETTLE_TIME := 0.10
 const TARGET_SEARCH_RADIUS := 45.0
 const LOOK_ZONE_MIN_X_RATIO := 0.6  # only the right side of the screen can ever start a look-drag
 
+# Soft footstep audio (see _update_footsteps/Footsteps.gd) - steps-per-second
+# at Game.get_move_speed(), scaled by actual speed the same way Enemy.gd's
+# footsteps are (so sprinting patters faster than a jog). Quiet/close-range
+# on purpose - "soft footsteps" per the brief, unlike the enemies' louder,
+# further-carrying ones.
+const FOOTSTEP_HZ := 3.6
+const FOOTSTEP_RANGE := 22.0
+const FOOTSTEP_VOLUME_DB := -14.0
+const FOOTSTEP_PITCH_JITTER := 0.06
+
 # AnimationLibrary_Godot_Standard.glb (see Model below) is a full mannequin
 # rig (53-bone Rigify-style deform skeleton) that ships with its own
 # AnimationPlayer/AnimationLibrary - real baked animations (Idle, Jog_Fwd,
@@ -102,6 +112,7 @@ var dash_dir: Vector3 = Vector3.ZERO
 
 var _is_throwing: bool = false
 var _throw_tween: Tween = null
+var _footstep_time: float = 0.0
 var _toy_model: PlayerToyModel = null
 var _throw_arm_visual: Node3D = null
 
@@ -349,6 +360,7 @@ func _update_animation(delta: float) -> void:
 	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
 	var moving: bool = horizontal_speed > 0.4 and is_on_floor() and not is_dashing
 	var sprinting: bool = moving and Input.is_action_pressed("sprint")
+	_update_footsteps(delta, moving, horizontal_speed)
 
 	if not is_on_floor():
 		if _was_on_floor:
@@ -376,6 +388,20 @@ func _update_animation(delta: float) -> void:
 	# doesn't fight that tween's own settle-back-to-base leg.
 	if not is_on_floor() and (_land_squash_tween == null or not _land_squash_tween.is_valid()):
 		model.scale = model.scale.lerp(_model_base_scale * AIR_STRETCH, blend)
+
+## Soft footstep audio - same accumulator-crosses-1.0 pattern Enemy.gd's
+## _update_footsteps uses, scaled by actual speed relative to
+## Game.get_move_speed() so sprinting (and any move-speed upgrades) pace
+## the patter correctly instead of a fixed real-time interval.
+func _update_footsteps(delta: float, moving: bool, horizontal_speed: float) -> void:
+	if not moving:
+		return
+	var ratio: float = clampf(horizontal_speed / maxf(Game.get_move_speed(), 0.5), 0.5, 2.0)
+	_footstep_time += delta * FOOTSTEP_HZ * ratio
+	while _footstep_time >= 1.0:
+		_footstep_time -= 1.0
+		var pitch: float = 1.0 + randf_range(-1.0, 1.0) * FOOTSTEP_PITCH_JITTER
+		Footsteps.play_step("player", global_position, FOOTSTEP_RANGE, FOOTSTEP_VOLUME_DB, pitch)
 
 ## Bouncy squash-then-recover pulse the instant the player lands, same
 ## technique as Enemy.gd's hit-reaction squash. Checked after move_and_slide()

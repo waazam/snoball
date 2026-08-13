@@ -25,6 +25,28 @@ const BODY_COLOR_OVERRIDES := {
 	"brute": Color("#4A3325"),  # elder reindeer - WOOD_BARK, darker than grunt
 }
 
+# Footstep audio profile per enemy_id (see _update_footsteps/Footsteps.gd).
+# `hz` is steps-per-second at this enemy's own base `speed` (scaled by the
+# same moving-speed ratio _update_animation already computes for the visual
+# run-cycle, but kept on its own accumulator so tuning footstep pace never
+# touches that animation). Quadrupeds (grunt/brute, EnemyReindeer.tscn) get
+# a high hz for a busy multi-hoof clatter instead of trying to sync to each
+# individual leg's phase; the bosses get a low hz for a slow, heavy, single
+# thump instead. `range` (Footsteps.play_step's max_distance) is hand-tuned
+# to roughly track each id's EnemyDB scale, per the "bigger enemy = wider
+# audible range" ask - snowman/its continuous slide isn't listed here, see
+# SNOWMAN_SLIDE_RANGE below, since it has no legs to step with at all
+# (EnemySnowman.tscn has no hip/shoulder pivots, unlike every other enemy).
+const FOOTSTEP_PROFILES := {
+	"grunt":   {"kind": "reindeer", "hz": 6.0,  "volume_db": -3.0, "pitch": 1.08, "pitch_jitter": 0.06, "range": 14.0},
+	"brute":   {"kind": "reindeer", "hz": 4.2,  "volume_db": 2.0,  "pitch": 0.82, "pitch_jitter": 0.05, "range": 20.0},
+	"thrower": {"kind": "elf",      "hz": 5.2,  "volume_db": -9.0, "pitch": 1.3,  "pitch_jitter": 0.08, "range": 10.0},
+	"santa":   {"kind": "santa",    "hz": 1.7,  "volume_db": 5.0,  "pitch": 1.0,  "pitch_jitter": 0.04, "range": 30.0},
+	"yeti":    {"kind": "yeti",     "hz": 1.35, "volume_db": 8.0,  "pitch": 0.88, "pitch_jitter": 0.04, "range": 38.0},
+}
+const SNOWMAN_SLIDE_RANGE := 24.0
+const SNOWMAN_SLIDE_VOLUME_DB := -5.0
+
 var enemy_id: String = "grunt"
 var max_health: float = 30.0
 var health: float = 30.0
@@ -87,6 +109,8 @@ var _hit_flash_tween: Tween = null
 @onready var leg_back_right: Node3D = get_node_or_null("LegBackRight")
 
 var _anim_time: float = 0.0
+var _footstep_time: float = 0.0
+var _slide_player: AudioStreamPlayer3D = null
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -172,10 +196,12 @@ func _update_animation(delta: float) -> void:
 	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
 	var moving: bool = horizontal_speed > 0.3 and not _dead
 	var amp: float = 0.0
+	var ratio: float = 0.0
 	if moving:
-		var ratio: float = clampf(horizontal_speed / maxf(speed, 0.5), 0.4, 2.2)
+		ratio = clampf(horizontal_speed / maxf(speed, 0.5), 0.4, 2.2)
 		_anim_time += delta * 10.0 * ratio
 		amp = 0.8
+	_update_footsteps(delta, moving, ratio)
 	var swing: float = sin(_anim_time) * amp
 	var blend: float = clampf(delta * 12.0, 0.0, 1.0)
 	if left_hip and right_hip:
@@ -189,6 +215,39 @@ func _update_animation(delta: float) -> void:
 		leg_back_right.rotation.x = lerp_angle(leg_back_right.rotation.x, swing * 0.5, blend)
 		leg_front_right.rotation.x = lerp_angle(leg_front_right.rotation.x, -swing * 0.5, blend)
 		leg_back_left.rotation.x = lerp_angle(leg_back_left.rotation.x, -swing * 0.5, blend)
+
+## Footstep audio, driven by FOOTSTEP_PROFILES - a per-id accumulator ticks
+## up by hz*ratio (ratio is the same moving-speed multiplier _update_animation
+## just used for the visual swing) and fires one Footsteps.play_step per
+## whole step crossed, `while` instead of `if` so a large delta spike can't
+## lose steps. The snowman has no profile here (no legs, see the
+## FOOTSTEP_PROFILES comment) - it gets a continuous slide loop instead.
+func _update_footsteps(delta: float, moving: bool, ratio: float) -> void:
+	if enemy_id == "snowman":
+		_update_slide_audio(moving)
+		return
+	if not moving or not FOOTSTEP_PROFILES.has(enemy_id):
+		return
+	var profile: Dictionary = FOOTSTEP_PROFILES[enemy_id]
+	_footstep_time += delta * float(profile["hz"]) * ratio
+	while _footstep_time >= 1.0:
+		_footstep_time -= 1.0
+		var pitch: float = float(profile["pitch"]) + randf_range(-1.0, 1.0) * float(profile["pitch_jitter"])
+		Footsteps.play_step(profile["kind"], global_position, float(profile["range"]), float(profile["volume_db"]), pitch)
+
+## Snowman-only: starts/stops a looping slide player parented to this body
+## (so its position tracks automatically) instead of firing discrete steps -
+## it has no hip/shoulder pivots to swing in the first place, matching how
+## it visibly glides rather than walks.
+func _update_slide_audio(moving: bool) -> void:
+	if moving:
+		if _slide_player == null:
+			_slide_player = Footsteps.make_slide_player(SNOWMAN_SLIDE_RANGE, SNOWMAN_SLIDE_VOLUME_DB)
+			add_child(_slide_player)
+		if not _slide_player.playing:
+			_slide_player.play()
+	elif _slide_player and _slide_player.playing:
+		_slide_player.stop()
 
 ## Random hops while chasing - just a periodic vertical impulse, purely for
 ## liveliness (also occasionally helps them hop over small ledges/obstacles).
@@ -349,6 +408,11 @@ func _die() -> void:
 	_dead = true
 	if _hit_scale_tween and _hit_scale_tween.is_valid():
 		_hit_scale_tween.kill()
+	# _physics_process (and with it _update_footsteps/_update_slide_audio)
+	# never runs again once _dead is true, so the snowman's slide loop would
+	# otherwise keep looping forever past death - nothing else stops it.
+	if _slide_player and _slide_player.playing:
+		_slide_player.stop()
 	Game.add_score(score_value)
 	Game.add_kill()
 	_drop_exp_pickup()

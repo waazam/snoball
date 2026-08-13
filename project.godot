@@ -25,6 +25,7 @@ UpgradeDB="*res://scripts/autoload/UpgradeDB.gd"
 HatDB="*res://scripts/autoload/HatDB.gd"
 GroundTrail="*res://scripts/autoload/GroundTrail.gd"
 Settings="*res://scripts/autoload/Settings.gd"
+Footsteps="*res://scripts/autoload/Footsteps.gd"
 Music="*res://scripts/autoload/Music.gd"
 
 [display]
