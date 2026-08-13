@@ -9,6 +9,7 @@ extends Node3D
 
 const PINE_CANOPY_SCRIPT := preload("res://scripts/world/PineCanopy.gd")
 const SNOW_CAP_SCRIPT := preload("res://scripts/world/SnowCap.gd")
+const ORNAMENT_CAP_SCRIPT := preload("res://scripts/world/OrnamentCap.gd")
 
 const INNER_RADIUS := 32.0  # stays clear of the hand-placed obstacle cluster near spawn
 const OUTER_RADIUS := 94.0  # stays inside the walls (+-100)
@@ -16,18 +17,39 @@ const TREE_COUNT := 65
 const ROCK_COUNT := 65
 const PLATFORM_COUNT := 12
 
+# Same 5 hues Arena.tscn's hand-placed Rock1-6 cycle through
+# (StdMat_ornament_red/gold/green/blue/silver) - built once here instead of
+# exported/wired per-material so each of the 65 scattered ornaments can pick
+# a random one, rather than all sharing a single material like the old
+# rock_material export did.
+const ORNAMENT_COLORS: Array[Color] = [
+	Color(0.909804, 0.282353, 0.243137, 1),
+	Color(1, 0.721569, 0.301961, 1),
+	Color(0.309804, 0.74902, 0.419608, 1),
+	Color(0.356863, 0.560784, 0.85098, 1),
+	Color(0.788235, 0.827451, 0.878431, 1),
+]
+
 @export var trunk_material: Material
 @export var canopy_material: Material
-@export var rock_material: Material
 @export var platform_material: Material
 
+var _ornament_materials: Array[StandardMaterial3D] = []
+
 func _ready() -> void:
+	for c in ORNAMENT_COLORS:
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = c
+		mat.metallic = 0.35
+		mat.roughness = 0.2
+		_ornament_materials.append(mat)
+
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1234
 	# Separate RNG for the purely-cosmetic additions (canopy proportions,
-	# snow caps) so the main rng's draw sequence - and therefore every
-	# collidable tree/rock/platform position - stays exactly what it was
-	# before the visual overhaul.
+	# snow caps, ornament color) so the main rng's draw sequence - and
+	# therefore every collidable tree/rock/platform position - stays exactly
+	# what it was before the visual overhaul.
 	var vis_rng := RandomNumberGenerator.new()
 	vis_rng.seed = 555
 	for i in TREE_COUNT:
@@ -91,6 +113,10 @@ func _spawn_tree(rng: RandomNumberGenerator, vis_rng: RandomNumberGenerator) -> 
 	canopy.position = Vector3(0, 3.0, 0)
 	tree.add_child(canopy)
 
+## Despite the name, these are Christmas ornaments now (see Arena.tscn's
+## hand-placed Rock1-6/OrnamentCap.gd) - kept as "rock" throughout since
+## that's still their placement/collision role (scattered boulder-scale
+## obstacles), just re-skinned.
 func _spawn_rock(rng: RandomNumberGenerator, vis_rng: RandomNumberGenerator) -> void:
 	var rock := StaticBody3D.new()
 	var s: float = rng.randf_range(0.7, 2.0)
@@ -107,8 +133,7 @@ func _spawn_rock(rng: RandomNumberGenerator, vis_rng: RandomNumberGenerator) -> 
 	mesh.rings = 6
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
-	if rock_material:
-		mi.material_override = rock_material
+	mi.material_override = _ornament_materials[vis_rng.randi() % _ornament_materials.size()]
 	rock.add_child(mi)
 
 	var shape := SphereShape3D.new()
@@ -117,7 +142,11 @@ func _spawn_rock(rng: RandomNumberGenerator, vis_rng: RandomNumberGenerator) -> 
 	cs.shape = shape
 	rock.add_child(cs)
 
-	# Settled snow on most boulders (visual only, no collision) - the same
+	var ornament_cap := Node3D.new()
+	ornament_cap.set_script(ORNAMENT_CAP_SCRIPT)
+	rock.add_child(ornament_cap)
+
+	# Settled snow on most ornaments (visual only, no collision) - the same
 	# SnowCap clusters the hand-placed crates/rocks in Arena.tscn carry, so
 	# the scattered ring matches the combat cluster's dressing.
 	if vis_rng.randf() < 0.8:

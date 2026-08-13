@@ -1,4 +1,4 @@
-[gd_scene load_steps=42 format=3]
+[gd_scene load_steps=48 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/WaveManager.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/world/LowPolySky.gd" id="2"]
@@ -14,6 +14,8 @@
 [ext_resource type="Script" path="res://scripts/world/Terrain.gd" id="16"]
 [ext_resource type="Script" path="res://scripts/world/LowPolyWall.gd" id="17"]
 [ext_resource type="Shader" path="res://scripts/world/SnowGround.gdshader" id="18"]
+[ext_resource type="Script" path="res://scripts/world/HayBaleBands.gd" id="19"]
+[ext_resource type="Script" path="res://scripts/world/OrnamentCap.gd" id="20"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_snowGround"]
 shader = ExtResource("18")
@@ -30,9 +32,9 @@ size = Vector3(1.6, 1.6, 1.6)
 [sub_resource type="BoxShape3D" id="BoxShape3D_crate"]
 size = Vector3(1.6, 1.6, 1.6)
 
-[sub_resource type="StandardMaterial3D" id="StdMat_wood"]
-albedo_color = Color(0.29, 0.2, 0.145, 1)
-roughness = 0.9
+[sub_resource type="StandardMaterial3D" id="StdMat_hay"]
+albedo_color = Color(0.788, 0.604, 0.271, 1)
+roughness = 0.88
 
 [sub_resource type="SphereMesh" id="SphereMesh_unit"]
 radius = 1.0
@@ -43,9 +45,30 @@ rings = 6
 [sub_resource type="SphereShape3D" id="SphereShape3D_unit"]
 radius = 1.0
 
-[sub_resource type="StandardMaterial3D" id="StdMat_rock"]
-albedo_color = Color(0.45, 0.48, 0.55, 1)
-roughness = 0.95
+[sub_resource type="StandardMaterial3D" id="StdMat_ornament_red"]
+albedo_color = Color(0.909804, 0.282353, 0.243137, 1)
+metallic = 0.35
+roughness = 0.2
+
+[sub_resource type="StandardMaterial3D" id="StdMat_ornament_gold"]
+albedo_color = Color(1, 0.721569, 0.301961, 1)
+metallic = 0.35
+roughness = 0.2
+
+[sub_resource type="StandardMaterial3D" id="StdMat_ornament_green"]
+albedo_color = Color(0.309804, 0.74902, 0.419608, 1)
+metallic = 0.35
+roughness = 0.2
+
+[sub_resource type="StandardMaterial3D" id="StdMat_ornament_blue"]
+albedo_color = Color(0.356863, 0.560784, 0.85098, 1)
+metallic = 0.35
+roughness = 0.2
+
+[sub_resource type="StandardMaterial3D" id="StdMat_ornament_silver"]
+albedo_color = Color(0.788235, 0.827451, 0.878431, 1)
+metallic = 0.35
+roughness = 0.2
 
 [sub_resource type="StandardMaterial3D" id="StdMat_snowpile"]
 albedo_color = Color(0.918, 0.949, 0.984, 1)
@@ -215,7 +238,7 @@ position = Vector3(10, 0.8, 10)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacles/Crate1"]
 mesh = SubResource("BoxMesh_crate")
-surface_material_override/0 = SubResource("StdMat_wood")
+surface_material_override/0 = SubResource("StdMat_hay")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate1"]
 shape = SubResource("BoxShape3D_crate")
@@ -226,12 +249,15 @@ script = ExtResource("7")
 cap_radius = 0.55
 blob_count = 4
 
+[node name="HayBaleBands" type="Node3D" parent="Obstacles/Crate1"]
+script = ExtResource("19")
+
 [node name="Crate2" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(-10, 0.8, 10)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacles/Crate2"]
 mesh = SubResource("BoxMesh_crate")
-surface_material_override/0 = SubResource("StdMat_wood")
+surface_material_override/0 = SubResource("StdMat_hay")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate2"]
 shape = SubResource("BoxShape3D_crate")
@@ -242,12 +268,15 @@ script = ExtResource("7")
 cap_radius = 0.55
 blob_count = 4
 
+[node name="HayBaleBands" type="Node3D" parent="Obstacles/Crate2"]
+script = ExtResource("19")
+
 [node name="Crate3" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(14, 0.8, -4)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacles/Crate3"]
 mesh = SubResource("BoxMesh_crate")
-surface_material_override/0 = SubResource("StdMat_wood")
+surface_material_override/0 = SubResource("StdMat_hay")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate3"]
 shape = SubResource("BoxShape3D_crate")
@@ -258,12 +287,15 @@ script = ExtResource("7")
 cap_radius = 0.55
 blob_count = 4
 
+[node name="HayBaleBands" type="Node3D" parent="Obstacles/Crate3"]
+script = ExtResource("19")
+
 [node name="Crate4" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(-14, 0.8, -4)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacles/Crate4"]
 mesh = SubResource("BoxMesh_crate")
-surface_material_override/0 = SubResource("StdMat_wood")
+surface_material_override/0 = SubResource("StdMat_hay")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate4"]
 shape = SubResource("BoxShape3D_crate")
@@ -274,12 +306,15 @@ script = ExtResource("7")
 cap_radius = 0.55
 blob_count = 4
 
+[node name="HayBaleBands" type="Node3D" parent="Obstacles/Crate4"]
+script = ExtResource("19")
+
 [node name="Crate5" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(0, 0.8, -16)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacles/Crate5"]
 mesh = SubResource("BoxMesh_crate")
-surface_material_override/0 = SubResource("StdMat_wood")
+surface_material_override/0 = SubResource("StdMat_hay")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate5"]
 shape = SubResource("BoxShape3D_crate")
@@ -290,12 +325,15 @@ script = ExtResource("7")
 cap_radius = 0.55
 blob_count = 4
 
+[node name="HayBaleBands" type="Node3D" parent="Obstacles/Crate5"]
+script = ExtResource("19")
+
 [node name="Crate6" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(6, 0.8, 18)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacles/Crate6"]
 mesh = SubResource("BoxMesh_crate")
-surface_material_override/0 = SubResource("StdMat_wood")
+surface_material_override/0 = SubResource("StdMat_hay")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate6"]
 shape = SubResource("BoxShape3D_crate")
@@ -306,12 +344,15 @@ script = ExtResource("7")
 cap_radius = 0.55
 blob_count = 4
 
+[node name="HayBaleBands" type="Node3D" parent="Obstacles/Crate6"]
+script = ExtResource("19")
+
 [node name="Crate7" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(-6, 0.8, -20)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacles/Crate7"]
 mesh = SubResource("BoxMesh_crate")
-surface_material_override/0 = SubResource("StdMat_wood")
+surface_material_override/0 = SubResource("StdMat_hay")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate7"]
 shape = SubResource("BoxShape3D_crate")
@@ -322,12 +363,15 @@ script = ExtResource("7")
 cap_radius = 0.55
 blob_count = 4
 
+[node name="HayBaleBands" type="Node3D" parent="Obstacles/Crate7"]
+script = ExtResource("19")
+
 [node name="Crate8" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(18, 0.8, 4)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacles/Crate8"]
 mesh = SubResource("BoxMesh_crate")
-surface_material_override/0 = SubResource("StdMat_wood")
+surface_material_override/0 = SubResource("StdMat_hay")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Crate8"]
 shape = SubResource("BoxShape3D_crate")
@@ -338,12 +382,15 @@ script = ExtResource("7")
 cap_radius = 0.55
 blob_count = 4
 
+[node name="HayBaleBands" type="Node3D" parent="Obstacles/Crate8"]
+script = ExtResource("19")
+
 [node name="Rock1" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(4, 1.0, 2)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacles/Rock1"]
 mesh = SubResource("SphereMesh_unit")
-surface_material_override/0 = SubResource("StdMat_rock")
+surface_material_override/0 = SubResource("StdMat_ornament_red")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Rock1"]
 shape = SubResource("SphereShape3D_unit")
@@ -354,13 +401,16 @@ script = ExtResource("7")
 cap_radius = 0.4
 blob_count = 4
 
+[node name="OrnamentCap" type="Node3D" parent="Obstacles/Rock1"]
+script = ExtResource("20")
+
 [node name="Rock2" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(-8, 0.8, -10)
 scale = Vector3(0.8, 0.8, 0.8)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacles/Rock2"]
 mesh = SubResource("SphereMesh_unit")
-surface_material_override/0 = SubResource("StdMat_rock")
+surface_material_override/0 = SubResource("StdMat_ornament_gold")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Rock2"]
 shape = SubResource("SphereShape3D_unit")
@@ -371,13 +421,16 @@ script = ExtResource("7")
 cap_radius = 0.4
 blob_count = 4
 
+[node name="OrnamentCap" type="Node3D" parent="Obstacles/Rock2"]
+script = ExtResource("20")
+
 [node name="Rock3" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(16, 1.1, -14)
 scale = Vector3(1.1, 1.1, 1.1)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacles/Rock3"]
 mesh = SubResource("SphereMesh_unit")
-surface_material_override/0 = SubResource("StdMat_rock")
+surface_material_override/0 = SubResource("StdMat_ornament_green")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Rock3"]
 shape = SubResource("SphereShape3D_unit")
@@ -388,13 +441,16 @@ script = ExtResource("7")
 cap_radius = 0.4
 blob_count = 4
 
+[node name="OrnamentCap" type="Node3D" parent="Obstacles/Rock3"]
+script = ExtResource("20")
+
 [node name="Rock4" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(-16, 0.9, 8)
 scale = Vector3(0.9, 0.9, 0.9)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacles/Rock4"]
 mesh = SubResource("SphereMesh_unit")
-surface_material_override/0 = SubResource("StdMat_rock")
+surface_material_override/0 = SubResource("StdMat_ornament_blue")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Rock4"]
 shape = SubResource("SphereShape3D_unit")
@@ -405,13 +461,16 @@ script = ExtResource("7")
 cap_radius = 0.4
 blob_count = 4
 
+[node name="OrnamentCap" type="Node3D" parent="Obstacles/Rock4"]
+script = ExtResource("20")
+
 [node name="Rock5" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(2, 1.2, -24)
 scale = Vector3(1.2, 1.2, 1.2)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacles/Rock5"]
 mesh = SubResource("SphereMesh_unit")
-surface_material_override/0 = SubResource("StdMat_rock")
+surface_material_override/0 = SubResource("StdMat_ornament_silver")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Rock5"]
 shape = SubResource("SphereShape3D_unit")
@@ -422,13 +481,16 @@ script = ExtResource("7")
 cap_radius = 0.4
 blob_count = 4
 
+[node name="OrnamentCap" type="Node3D" parent="Obstacles/Rock5"]
+script = ExtResource("20")
+
 [node name="Rock6" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(-2, 0.85, 22)
 scale = Vector3(0.85, 0.85, 0.85)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacles/Rock6"]
 mesh = SubResource("SphereMesh_unit")
-surface_material_override/0 = SubResource("StdMat_rock")
+surface_material_override/0 = SubResource("StdMat_ornament_red")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Obstacles/Rock6"]
 shape = SubResource("SphereShape3D_unit")
@@ -438,6 +500,9 @@ position = Vector3(0, 1.0, 0)
 script = ExtResource("7")
 cap_radius = 0.4
 blob_count = 4
+
+[node name="OrnamentCap" type="Node3D" parent="Obstacles/Rock6"]
+script = ExtResource("20")
 
 [node name="SnowPile1" type="StaticBody3D" parent="Obstacles"]
 position = Vector3(8, 0.5, -8)
@@ -916,7 +981,6 @@ position = Vector3(0, 1, 32)
 script = ExtResource("15")
 trunk_material = SubResource("StdMat_trunk")
 canopy_material = SubResource("StdMat_canopy")
-rock_material = SubResource("StdMat_rock")
 platform_material = SubResource("StdMat_platform")
 
 [node name="WaveManager" type="Node3D" parent="."]
