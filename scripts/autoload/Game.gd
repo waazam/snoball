@@ -53,9 +53,9 @@ var upgrade_counts: Dictionary = {
 	"proj_speed": 0,
 }
 
-# Which of SnowballDB's 9 types the player currently throws. Always starts
-# on the Standard Snowball; changes only via present pickups (see
-# PresentPickup.gd + equip_snowball below) - permanent until the next one.
+# Which of SnowballDB's 9 types the player currently throws. Starts each
+# run on whatever's equipped in Progress (see reset_run below) - permanent
+# for the run unless a boss drop overrides it (equip_snowball below).
 var current_snowball_type: String = "standard"
 
 var _regen_accum: float = 0.0
@@ -85,7 +85,7 @@ func reset_run() -> void:
 	double_jump_unlocked = false
 	triple_jump_unlocked = false
 	dash_unlocked = false
-	current_snowball_type = "standard"
+	current_snowball_type = Progress.equipped_snowball
 	max_health = 100.0
 	health = max_health
 	max_armor = 0.0
@@ -224,8 +224,9 @@ func get_projectile_count() -> int:
 	return 1 + get_level()
 
 # --- Snowballs -------------------------------------------------------------
-## Called by present pickups. Permanent until the next present (see
-## PresentPickup.gd) - not a timed buff.
+## Temporary, run-only override on top of the permanently-equipped ball
+## (Progress.equipped_snowball, applied in reset_run above) - currently only
+## used by the Yeti's dropped sword pickup (see SwordPickup.gd).
 func equip_snowball(id: String) -> void:
 	current_snowball_type = id
 	emit_signal("snowball_type_changed", id)

@@ -6,10 +6,9 @@ extends "res://scripts/enemies/Enemy.gd"
 ## heavy bleed on top (see Game.apply_bleed - the player has no per-actor
 ## status-effect script of its own like enemies do, so that lives on Game).
 ## On death he drops his sword as a real pickup (SwordPickup.tscn) that
-## re-equips the player onto SnowballDB's "yeti_sword" type, replacing
-## whatever snowball they had - same "equip and stay" mechanic every present
-## pickup uses (see PresentPickup.gd/Game.equip_snowball), just triggered
-## from a boss kill instead of a wave-start present.
+## re-equips the player onto SnowballDB's "yeti_sword" type for the rest of
+## the run, replacing whatever snowball they had (see Game.equip_snowball) -
+## temporary, unlike the permanent menu-equipped snowballs (Progress.gd).
 ##
 ## Body/collision/health bar are hand-placed in EnemyYeti.tscn (same split
 ## every other boss uses); fur, face, chest, feet, arms and the wielded

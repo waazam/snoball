@@ -17,8 +17,9 @@ config/icon="res://icon.svg"
 
 [autoload]
 
-Game="*res://scripts/autoload/Game.gd"
 SnowballDB="*res://scripts/autoload/SnowballDB.gd"
+Progress="*res://scripts/autoload/Progress.gd"
+Game="*res://scripts/autoload/Game.gd"
 EnemyDB="*res://scripts/autoload/EnemyDB.gd"
 UpgradeDB="*res://scripts/autoload/UpgradeDB.gd"
 HatDB="*res://scripts/autoload/HatDB.gd"

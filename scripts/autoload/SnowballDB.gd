@@ -1,17 +1,14 @@
 extends Node
-## Data-only singleton describing the 9 snowball types. There's no
-## unlocking/upgrading here (unlike the old tiered-weapon system this
-## replaced) - which one the player currently throws is purely decided by
-## the last "present" pickup they collected (see PresentPickup.gd +
-## Game.equip_snowball). Snowball.gd reads get_stats(id) to configure a
-## thrown projectile's physics and SnowballVisuals.gd/get_shape(id) to
-## build its look; "effect" drives what happens to an enemy it hits (see
-## Snowball._hit_enemy). "rarity" is the present pickup's drop weight -
-## higher rolls more often (see get_random_id). Entries are deliberately
-## not in damage/rarity order (shuffled) - the common ones (25-28) are
-## meaningfully more likely than the uncommons (13), which are themselves
-## far more likely than ice (5) or, especially, the death ball (1: under
-## 1% of drops).
+## Data-only singleton describing the 9 snowball types. Which one the player
+## currently throws is decided by which they've equipped from the main
+## menu's Snowballs submenu (see Progress.gd/SnowballMenu.gd) - permanent
+## until they equip a different one there. Snowball.gd reads get_stats(id)
+## to configure a thrown projectile's physics and SnowballVisuals.gd/
+## get_shape(id) to build its look; "effect" drives what happens to an
+## enemy it hits (see Snowball._hit_enemy). "order"/"unlock_wave" describe
+## permanent progression - see get_unlockable_ids_ordered()/get_unlock_wave()
+## and Progress.gd, which tracks the player's all-time best cleared wave and
+## compares it against unlock_wave to decide what's unlocked.
 
 const TYPES := {
 	"sticks": {
@@ -23,7 +20,8 @@ const TYPES := {
 		"effect": "bleed",
 		"effect_dps": 4.0,
 		"effect_duration": 5.0,
-		"rarity": 13,
+		"order": 5,
+		"unlock_wave": 12,
 	},
 	"death_ball": {
 		"display_name": "Death Snowball",
@@ -32,7 +30,8 @@ const TYPES := {
 		"color": Color("#47106B"),
 		"shape": "death_ball",
 		"effect": "instakill",
-		"rarity": 1,
+		"order": 9,
+		"unlock_wave": 25,
 	},
 	"piss_ball": {
 		"display_name": "Yellow Snowball",
@@ -43,7 +42,8 @@ const TYPES := {
 		"effect": "footprints",
 		"effect_color": Color("#D9B81C"),
 		"effect_duration": 10.0,
-		"rarity": 25,
+		"order": 3,
+		"unlock_wave": 6,
 	},
 	"ice": {
 		"display_name": "Ice Snowball",
@@ -55,7 +55,8 @@ const TYPES := {
 		"effect_radius": 3.5,
 		"effect_duration": 2.0,
 		"effect_factor": 0.2,
-		"rarity": 5,
+		"order": 8,
+		"unlock_wave": 21,
 	},
 	"standard": {
 		"display_name": "Standard Snowball",
@@ -64,7 +65,8 @@ const TYPES := {
 		"color": Color("#EAF2FB"),
 		"shape": "standard",
 		"effect": "none",
-		"rarity": 28,
+		"order": 1,
+		"unlock_wave": 0,
 	},
 	"nails": {
 		"display_name": "Nail Snowball",
@@ -75,7 +77,8 @@ const TYPES := {
 		"effect": "bleed",
 		"effect_dps": 5.0,
 		"effect_duration": 5.0,
-		"rarity": 13,
+		"order": 6,
+		"unlock_wave": 15,
 	},
 	"sap": {
 		"display_name": "Tree Sap Snowball",
@@ -86,7 +89,8 @@ const TYPES := {
 		"effect": "slow",
 		"effect_duration": 2.5,
 		"effect_factor": 0.45,
-		"rarity": 13,
+		"order": 4,
+		"unlock_wave": 9,
 	},
 	"perfect_white": {
 		"display_name": "Perfect Snowball",
@@ -95,7 +99,8 @@ const TYPES := {
 		"color": Color("#FFFFFF"),
 		"shape": "perfect_white",
 		"effect": "silent",
-		"rarity": 25,
+		"order": 2,
+		"unlock_wave": 3,
 	},
 	"gravel": {
 		"display_name": "Gravel Snowball",
@@ -105,11 +110,14 @@ const TYPES := {
 		"shape": "gravel",
 		"effect": "shotgun",
 		"effect_radius": 3.0,
-		"rarity": 13,
+		"order": 7,
+		"unlock_wave": 18,
 	},
-	# Not part of the normal present-pickup pool (rarity 0 - get_random_id
-	# can never roll it): only obtainable by defeating the wave-15 Yeti boss
-	# and collecting his dropped SwordPickup, see EnemyYeti.gd/SwordPickup.gd.
+	# Not one of the 9 unlockable/equippable types (no order/unlock_wave -
+	# excluded from get_unlockable_ids_ordered()): only obtainable by
+	# defeating the wave-15 Yeti boss and collecting his dropped
+	# SwordPickup, see EnemyYeti.gd/SwordPickup.gd. Temporary for that run
+	# only, via Game.equip_snowball directly (not Progress.equip).
 	"yeti_sword": {
 		"display_name": "Yeti's Christmas Tree Sword",
 		"desc": "A massive blade shaped like a decorated tree, strung with lights. Causes heavy bleeding.",
@@ -119,7 +127,6 @@ const TYPES := {
 		"effect": "bleed",
 		"effect_dps": 10.0,
 		"effect_duration": 6.0,
-		"rarity": 0,
 	},
 }
 
@@ -178,17 +185,17 @@ func get_stats(id: String) -> Dictionary:
 			stats["freeze_factor"] = data.get("effect_factor", 0.2)
 	return stats
 
-## Weighted random pick for present pickups - "rarity" is the weight, so
-## the death ball (rarity 1 against the commons' 25-28) is by far the
-## least likely to come up.
-func get_random_id() -> String:
-	var total: float = 0.0
+## The 9 menu-unlockable/equippable types (excludes "yeti_sword", which has
+## no "order" key), sorted by unlock progression - see Progress.gd.
+func get_unlockable_ids_ordered() -> Array:
+	var ids: Array = []
 	for id in TYPES:
-		total += float(TYPES[id].get("rarity", 1))
-	var roll: float = randf() * total
-	var accum: float = 0.0
-	for id in TYPES:
-		accum += float(TYPES[id].get("rarity", 1))
-		if roll < accum:
-			return id
-	return "standard"
+		if TYPES[id].has("order"):
+			ids.append(id)
+	ids.sort_custom(func(a, b): return TYPES[a]["order"] < TYPES[b]["order"])
+	return ids
+
+## Wave that must be cleared (see Progress.report_wave_cleared) to unlock
+## this type. 0 for the standard-issue starter ball.
+func get_unlock_wave(id: String) -> int:
+	return get_data(id).get("unlock_wave", 0)

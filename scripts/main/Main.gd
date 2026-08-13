@@ -96,6 +96,7 @@ func _apply_arena_lighting_overrides() -> void:
 func _on_wave_cleared(_wave: int) -> void:
 	if Game.state != Game.State.PLAYING:
 		return
+	Progress.report_wave_cleared(Game.wave)
 	Game.set_state(Game.State.UPGRADE)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	upgrade_screen.open()

@@ -8,7 +8,6 @@ signal wave_cleared(wave: int)
 
 const SPAWN_STAGGER := 0.26
 const HAT_SCENE_PATH := "res://scenes/pickups/HatPickup.tscn"
-const PRESENT_SCENE_PATH := "res://scenes/pickups/PresentPickup.tscn"
 const HAT_SPAWN_RADIUS := 28.0
 const HAT_SPAWN_MIN_RADIUS := 4.0
 
@@ -36,7 +35,6 @@ func start_wave(wave: int) -> void:
 	_spawn_timer = 0.0
 	emit_signal("wave_started", wave)
 	_spawn_hat_pickup()
-	_spawn_present_pickup()
 
 func _random_ground_point() -> Vector3:
 	var angle: float = randf() * TAU
@@ -49,13 +47,6 @@ func _spawn_hat_pickup() -> void:
 	get_tree().current_scene.add_child(hat)
 	hat.global_position = _random_ground_point()
 	hat.setup(HatDB.get_random_id())
-
-func _spawn_present_pickup() -> void:
-	var scene: PackedScene = load(PRESENT_SCENE_PATH)
-	var present: Area3D = scene.instantiate()
-	get_tree().current_scene.add_child(present)
-	present.global_position = _random_ground_point()
-	present.setup(SnowballDB.get_random_id())
 
 func _process(delta: float) -> void:
 	if not spawning or Game.state != Game.State.PLAYING:
