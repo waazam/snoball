@@ -1,3 +1,4 @@
+class_name WindowFrame
 extends Control
 ## The main menu window's wood frame plus a small snow-dusted sill ledge
 ## poking out below it. The night scene itself (sky, moon, treeline) lives
@@ -10,6 +11,11 @@ extends Control
 ## FRAME_THICKNESS must match the 22px inset MainMenu.tscn gives the Pane/
 ## MullionH/MullionV children - it's what makes this frame's inner bevel
 ## line up with the hole those children fill.
+##
+## class_name'd (like PlayerToyModel.gd) purely so its wood palette
+## (FRAME_COLOR/FRAME_HILIGHT/FRAME_SHADOW/SILL_COLOR) can be referenced by
+## name from NightstandLamp.gd, which matches its own wood tones to these
+## exactly rather than a copy that could drift out of sync.
 
 const FRAME_COLOR := Color(0.36, 0.22, 0.12)
 const FRAME_HILIGHT := Color(0.5, 0.32, 0.17)
