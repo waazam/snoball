@@ -189,7 +189,7 @@ func _build_throw_arm_visual() -> void:
 	right_shoulder.add_child(_throw_arm_visual)
 
 	var sleeve_mat := StandardMaterial3D.new()
-	sleeve_mat.albedo_color = PlayerToyModel.COAT_TEAL
+	sleeve_mat.albedo_color = PlayerToyModel.SWEATER_GREEN
 	sleeve_mat.roughness = 0.8
 	var cuff_mat := StandardMaterial3D.new()
 	cuff_mat.albedo_color = PlayerToyModel.TRIM_WHITE

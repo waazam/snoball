@@ -24,15 +24,25 @@ extends Node3D
 ##
 ## Palette + material rules follow the shared "Alpenglow Dusk" conventions
 ## (cloth roughness 0.8, fur 0.97, metal roughness 0.35 / metallic 0.9).
-## Hexes reuse the master palette swatches; COAT_TEAL is the palette's
-## player-coat entry, unique to the player so no other script repeats it.
+## Hexes reuse the master palette swatches; SWEATER_GREEN/JEANS_BLUE/
+## BOOT_BLACK are the outfit's own entries, unique to the player so no other
+## script repeats them - an ugly-Christmas-sweater look (green knit sweater,
+## blue jeans, black boots, tan skin) replacing the old coat-and-scarf coat,
+## modeled after a real sweater reference photo. Faithfully reproducing that
+## sweater's actual text/pixel-art graphic isn't achievable in this style -
+## every character in the game is flat-shaded primitives with no UV/texture
+## pipeline at all - so MUG_COLOR's chest emblem below stands in for it
+## instead of literally replicating it.
 
-const COAT_TEAL := Color("#3D7EA8")     # master palette PLAYER_COAT winter teal-blue
-const TRIM_WHITE := Color("#F5EFE6")    # PLAYER_TRIM fur/fringe
-const SCARF_RED := Color("#E8483F")     # EMBER_RED accent
-const COAL_DARK := Color("#26221F")     # belt/boots/eyes
-const BUCKLE_GOLD := Color("#FFB84D")   # EMBER_GOLD, the one metallic bit
-const SKIN := Color(0.949, 0.78, 0.62)  # same skin family as the elf
+const SWEATER_GREEN := Color("#2A7350") # green Christmas sweater (was COAT_TEAL's coat)
+const TRIM_WHITE := Color("#F5EFE6")    # PLAYER_TRIM - sweater rib-knit collar/cuffs/hem
+const SCARF_RED := Color("#E8483F")     # EMBER_RED accent - kept as a cozy layer over the sweater
+const COAL_DARK := Color("#26221F")     # belt backing/eyes
+const BUCKLE_GOLD := Color("#FFB84D")   # EMBER_GOLD, the belt buckle's metallic bit
+const JEANS_BLUE := Color("#3C5A82")    # blue jean pants (was the coat's darkened-teal slate)
+const BOOT_BLACK := Color("#171310")    # black boots - darker than COAL_DARK so they read as true black next to it
+const MUG_COLOR := Color("#FFB84D")     # chest mug emblem, reuses EMBER_GOLD - a nod to the sweater photo's mug graphic
+const SKIN := Color("#D2996B")          # normal tan skin tone
 
 # Must stay equal to HatVisuals.HEAD_RADIUS - every hat in the game is
 # proportioned against it, and hat_mount below seats hats on this sphere.
@@ -110,30 +120,55 @@ func _build_body() -> void:
 	var b_head: int = _bone("DEF-head")
 	var b_hips: int = _bone("DEF-hips")
 
-	var coat := _cloth(COAT_TEAL)
-	var pants := _cloth(COAT_TEAL.darkened(0.55))  # dark slate: heavily darkened coat teal
+	var sweater := _cloth(SWEATER_GREEN)
+	var jeans := _cloth(JEANS_BLUE)
 	var trim := _fur(TRIM_WHITE)
 	var scarf := _cloth(SCARF_RED)
 	var coal := _cloth(COAL_DARK)
 	var gold := _metal(BUCKLE_GOLD)
+	var boots := _cloth(BOOT_BLACK)
+	var mug := _metal(MUG_COLOR)
 	var skin := _cloth(SKIN)
 	skin.roughness = 0.85
 
-	# Torso: teal coat capsule stretched spine-to-neck; the overlap extends
-	# its rounded caps down over the hips and up under the chin.
-	_add_segment(_capsule(0.16), coat, b_spine, b_neck, 0.5, 0.2)
+	# Torso: green sweater capsule stretched spine-to-neck; the overlap
+	# extends its rounded caps down over the hips (untucked hem) and up
+	# under the chin (crew collar).
+	_add_segment(_capsule(0.16), sweater, b_spine, b_neck, 0.5, 0.2)
 
 	if b_spine != -1:
 		var spine_o: Vector3 = _skeleton.get_bone_global_rest(b_spine).origin
-		# Fur hem ring near the coat's bottom cap.
+		# Rib-knit hem ring near the sweater's bottom cap.
 		var hem := Node3D.new()
 		hem.add_child(_part(_torus(0.1, 0.16), trim, Vector3.ZERO))
 		_add_anchored(hem, b_spine, spine_o + Vector3(0, -0.055, 0))
-		# Coal belt at the hips with a small gold buckle on the +Z front.
+		# Coal belt at the hips (worn over the jeans) with a small gold
+		# buckle on the +Z front.
 		var belt := Node3D.new()
 		belt.add_child(_part(_torus(0.135, 0.19), coal, Vector3.ZERO))
 		belt.add_child(_part(_box(Vector3(0.055, 0.05, 0.025)), gold, Vector3(0, 0, 0.18)))
 		_add_anchored(belt, b_hips if b_hips != -1 else b_spine, spine_o + Vector3(0, 0.06, 0))
+		# Chest mug emblem - the sweater photo's own graphic (mug + text)
+		# can't be reproduced without a texture/UV pipeline (nothing in this
+		# game has one - every character is flat-shaded primitives), so this
+		# stands in for it: a small gold mug with a loop handle, centered
+		# high on the chest. Built with explicit small dimensions (not the
+		# _cyl()/_torus() helpers, which assume _add_segment resizes them
+		# from a bone distance - placed directly via _part() here instead).
+		var mug_root := Node3D.new()
+		var mug_body_mesh := CylinderMesh.new()
+		mug_body_mesh.top_radius = 0.032
+		mug_body_mesh.bottom_radius = 0.028
+		mug_body_mesh.height = 0.045
+		mug_body_mesh.radial_segments = 10
+		mug_root.add_child(_part(mug_body_mesh, mug, Vector3.ZERO))
+		var mug_handle_mesh := TorusMesh.new()
+		mug_handle_mesh.inner_radius = 0.012
+		mug_handle_mesh.outer_radius = 0.024
+		mug_handle_mesh.rings = 12
+		mug_handle_mesh.ring_segments = 6
+		mug_root.add_child(_part(mug_handle_mesh, mug, Vector3(0.03, 0, 0), Vector3(90, 0, 0)))
+		_add_anchored(mug_root, b_spine, spine_o + Vector3(0, 0.13, 0.155))
 
 	# Head: skin sphere sized exactly for the hat system, dot eyes + rosy
 	# cheeks on the +Z face like the elf. Cheek tone follows EnemySanta's
@@ -162,17 +197,17 @@ func _build_body() -> void:
 		scarf_root.add_child(_part(_box(Vector3(0.095, 0.045, 0.034)), trim, Vector3(0, -0.205, -0.155), Vector3(10, 0, 4)))
 		_add_anchored(scarf_root, b_neck, neck_o)
 
-	# Arms: teal sleeves with sphere shoulder/elbow joints, fur cuff at each
-	# wrist, ember mitten spheres at the hands.
+	# Arms: green sweater sleeves with sphere shoulder/elbow joints, ribbed
+	# cuff at each wrist, ember mitten spheres at the hands.
 	for side in ["L", "R"]:
 		var b_upper: int = _bone("DEF-upper_arm." + side)
 		var b_fore: int = _bone("DEF-forearm." + side)
 		var b_hand: int = _bone("DEF-hand." + side)
 		var arm_parts: Array[Node3D] = []
-		arm_parts.append(_add_joint_sphere(0.068, coat, b_upper))
-		arm_parts.append(_add_joint_sphere(0.058, coat, b_fore))
-		arm_parts.append(_add_segment(_cyl(0.052), coat, b_upper, b_fore, 0.5, 0.04))
-		arm_parts.append(_add_segment(_cyl(0.048), coat, b_fore, b_hand, 0.5, 0.04))
+		arm_parts.append(_add_joint_sphere(0.068, sweater, b_upper))
+		arm_parts.append(_add_joint_sphere(0.058, sweater, b_fore))
+		arm_parts.append(_add_segment(_cyl(0.052), sweater, b_upper, b_fore, 0.5, 0.04))
+		arm_parts.append(_add_segment(_cyl(0.048), sweater, b_fore, b_hand, 0.5, 0.04))
 		# Cuff rides the forearm-to-wrist line so it wraps the arm correctly
 		# in any rest pose (a bone-anchored torus would sit axis-aligned).
 		arm_parts.append(_add_segment(_torus(0.045, 0.085), trim, b_fore, b_hand, 0.94))
@@ -187,22 +222,23 @@ func _build_body() -> void:
 				if p != null:
 					right_arm_parts.append(p)
 
-	# Legs: dark slate pant cylinders with sphere hip/knee joints, fur ring
-	# at each boot top, coal boots extending toward the toes (+Z at rest).
+	# Legs: blue jean cylinders with sphere hip/knee joints, a fur ring
+	# where each jean cuff meets the boot top (cozy fur-lined snow boots),
+	# black boots extending toward the toes (+Z at rest).
 	for side in ["L", "R"]:
 		var b_thigh: int = _bone("DEF-thigh." + side)
 		var b_shin: int = _bone("DEF-shin." + side)
 		var b_foot: int = _bone("DEF-foot." + side)
-		_add_joint_sphere(0.075, pants, b_thigh)
-		_add_joint_sphere(0.062, pants, b_shin)
-		_add_segment(_cyl(0.068), pants, b_thigh, b_shin, 0.5, 0.04)
-		_add_segment(_cyl(0.055), pants, b_shin, b_foot, 0.5, 0.04)
+		_add_joint_sphere(0.075, jeans, b_thigh)
+		_add_joint_sphere(0.062, jeans, b_shin)
+		_add_segment(_cyl(0.068), jeans, b_thigh, b_shin, 0.5, 0.04)
+		_add_segment(_cyl(0.055), jeans, b_shin, b_foot, 0.5, 0.04)
 		_add_segment(_torus(0.055, 0.105), trim, b_shin, b_foot, 0.93)
 		if b_foot != -1:
 			var ankle: Vector3 = _skeleton.get_bone_global_rest(b_foot).origin
 			var boot := Node3D.new()
-			boot.add_child(_part(_box(Vector3(0.115, 0.09, 0.21)), coal, Vector3(0, -0.045, 0.045)))
-			boot.add_child(_part(_sph(0.052, 10), coal, Vector3(0, -0.055, 0.15)))  # rounded toe
+			boot.add_child(_part(_box(Vector3(0.115, 0.09, 0.21)), boots, Vector3(0, -0.045, 0.045)))
+			boot.add_child(_part(_sph(0.052, 10), boots, Vector3(0, -0.055, 0.15)))  # rounded toe
 			_add_anchored(boot, b_foot, ankle)
 
 # --- Part registration ------------------------------------------------------
