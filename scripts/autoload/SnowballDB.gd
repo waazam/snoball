@@ -14,7 +14,7 @@ const TYPES := {
 	"sticks": {
 		"display_name": "Stick Snowball",
 		"desc": "Bristling with sharp sticks. Causes bleeding.",
-		"damage": 25.0,
+		"damage": 35.0,
 		"color": Color("#EAF2FB"),
 		"shape": "sticks",
 		"effect": "bleed",
@@ -36,7 +36,7 @@ const TYPES := {
 	"piss_ball": {
 		"display_name": "Yellow Snowball",
 		"desc": "Best not to ask. Leaves yellow footprints behind whatever it hits.",
-		"damage": 20.0,
+		"damage": 25.0,
 		"color": Color("#D9B81C"),
 		"shape": "piss_ball",
 		"effect": "footprints",
@@ -61,7 +61,7 @@ const TYPES := {
 	"standard": {
 		"display_name": "Standard Snowball",
 		"desc": "A reliable, well-packed snowball. Nothing fancy.",
-		"damage": 20.0,
+		"damage": 15.0,
 		"color": Color("#EAF2FB"),
 		"shape": "standard",
 		"effect": "none",
@@ -71,7 +71,7 @@ const TYPES := {
 	"nails": {
 		"display_name": "Nail Snowball",
 		"desc": "Studded with rusty nails. Causes bleeding.",
-		"damage": 30.0,
+		"damage": 40.0,
 		"color": Color("#EAF2FB"),
 		"shape": "nails",
 		"effect": "bleed",
@@ -83,7 +83,7 @@ const TYPES := {
 	"sap": {
 		"display_name": "Tree Sap Snowball",
 		"desc": "Sticky sap and pine needles. Slows whatever it hits.",
-		"damage": 15.0,
+		"damage": 30.0,
 		"color": Color("#7FA332"),
 		"shape": "sap",
 		"effect": "slow",
@@ -105,7 +105,7 @@ const TYPES := {
 	"gravel": {
 		"display_name": "Gravel Snowball",
 		"desc": "Studded with rock. Bursts in a shotgun blast on impact.",
-		"damage": 25.0,
+		"damage": 45.0,
 		"color": Color("#8A8378"),
 		"shape": "gravel",
 		"effect": "shotgun",
