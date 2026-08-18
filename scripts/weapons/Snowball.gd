@@ -38,6 +38,15 @@ var _trail: GPUParticles3D = null
 var _wisp_color: Color = SnowballVisuals.SNOW_LIT
 var _pulse_time: float = 0.0
 
+# In-flight tumble (visual only, feel-only): a random axis/rate per throw so
+# a stream of snowballs doesn't all spin identically. Applied to
+# _visual_root alone, independent of the whole-node look_at() reorientation
+# below, so the ball still faces its velocity while visibly tumbling as it
+# flies - previously every snowball held a fixed orientation in flight and
+# read as floaty/static despite full flight speed.
+var _spin_axis: Vector3 = Vector3.UP
+var _spin_rate: float = 0.0
+
 var _hit_bodies: Array = []
 var _age: float = 0.0
 var _dead: bool = false
@@ -80,6 +89,11 @@ func setup(p_direction: Vector3, p_stats: Dictionary, p_is_player_owned: bool, p
 			collision_layer = 16
 			collision_mask = 1 | 2
 	_color = p_color
+	_spin_axis = Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), randf_range(-1.0, 1.0))
+	if _spin_axis.length_squared() < 0.0001:
+		_spin_axis = Vector3.RIGHT
+	_spin_axis = _spin_axis.normalized()
+	_spin_rate = randf_range(9.0, 15.0) * (1.0 if randf() < 0.5 else -1.0)
 	if is_player_owned and not is_cluster_shard:
 		var data: Dictionary = SnowballDB.get_data(type_id)
 		effect_kind = data.get("effect", "none")
@@ -124,6 +138,8 @@ func _physics_process(delta: float) -> void:
 		var look_dir: Vector3 = velocity.normalized()
 		if absf(look_dir.dot(Vector3.UP)) < 0.999:
 			look_at(global_position + look_dir, Vector3.UP)
+	if _visual_root and is_instance_valid(_visual_root):
+		_visual_root.rotate(_spin_axis, _spin_rate * delta)
 	if type_id == "death_ball" and _visual_root:
 		_pulse_time += delta
 		var p: float = 1.0 + 0.18 * sin(_pulse_time * PULSE_SPEED)
@@ -164,7 +180,7 @@ func _on_body_entered(body: Node) -> void:
 			if cluster_count > 0:
 				_spawn_cluster()
 			if pierce <= 0:
-				_die()
+				_die(false)  # _hit_enemy already spawned this hit's impact puff
 		elif body is StaticBody3D:
 			if splash_radius > 0.0:
 				_do_splash()
@@ -198,6 +214,11 @@ func _hit_enemy(body: Node) -> void:
 		if push_dir.length() > 0.01:
 			body.apply_knockback(push_dir.normalized() * knockback)
 	_spawn_snow_splat(body)
+	# Every hit gets its own burst, not just the final pierce-out one - a
+	# piercing throw used to only puff on the last enemy it killed, leaving
+	# every hit before that with nothing but a stuck-on snow blob.
+	if is_inside_tree():
+		SnowballVisuals.spawn_impact_puff(get_tree().current_scene, global_position, _wisp_color)
 
 ## Sticks a little cluster of snow blobs onto the enemy at the impact point,
 ## parented directly to it so ordinary transform inheritance carries it
@@ -253,12 +274,14 @@ func _spawn_cluster() -> void:
 		shard.global_position = global_position
 		shard.setup(out_dir, shard_stats, is_player_owned, _color, true)
 
-func _die() -> void:
+## spawn_puff: false when a caller already spawned this snowball's impact
+## puff itself (see _hit_enemy) and doesn't want a second one on top of it.
+func _die(spawn_puff: bool = true) -> void:
 	if _dead:
 		return
 	_dead = true
 	# Visual-only impact feel: a small self-freeing snow puff where the ball
 	# ended, tinted like its flight wisp.
-	if is_inside_tree():
+	if spawn_puff and is_inside_tree():
 		SnowballVisuals.spawn_impact_puff(get_tree().current_scene, global_position, _wisp_color)
 	queue_free()
