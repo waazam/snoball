@@ -65,7 +65,17 @@ const GLINT_SIZE := 0.06
 const GLINT_OFFSETS := [Vector3(0.13, 0.15, 0.0), Vector3(-0.1, -0.06, 0.11)]
 const GLINT_PHASES := [0.0, 2.4]
 
+# Uncollected pickups used to have no despawn at all - one left outside
+# MAGNET_RADIUS (e.g. an enemy that died far from the player) would sit on
+# the arena floor, fully alive (Area3D + 5 MeshInstance3D + a twinkle/bob
+# _process every frame), for the rest of the run. Every kill drops one, so
+# that accumulation compounds directly with wave number - a strong
+# candidate for "gets laggy on higher rounds". A generous timeout still
+# gives the player plenty of time to walk back for one before it fades.
+const DESPAWN_TIME := 40.0
+
 var _bob_time: float = 0.0
+var _age: float = 0.0
 var _collected: bool = false
 var _visual: MeshInstance3D
 var _glint_mats: Array[StandardMaterial3D] = []
@@ -248,6 +258,10 @@ func _add_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, color: Color)
 func _process(delta: float) -> void:
 	if _collected:
 		return
+	_age += delta
+	if _age >= DESPAWN_TIME:
+		_despawn()
+		return
 	_bob_time += delta
 	rotate_y(delta * ROTATE_SPEED)
 	# Visual-only extra bob on the mesh child: in phase with the root's bob
@@ -257,7 +271,7 @@ func _process(delta: float) -> void:
 	for i in _glint_mats.size():
 		var twinkle: float = 0.5 + 0.5 * sin(_bob_time * 3.2 + GLINT_PHASES[i])
 		_glint_mats[i].albedo_color.a = 0.1 + 0.9 * twinkle * twinkle * twinkle
-	var player: Node3D = _get_player()
+	var player: Node3D = Game.player
 	if player and global_position.distance_to(player.global_position) <= MAGNET_RADIUS:
 		_fly_toward(player, delta)
 	else:
@@ -274,11 +288,16 @@ func _fly_toward(player: Node3D, delta: float) -> void:
 	var speed: float = lerpf(MAGNET_SPEED_MIN, MAGNET_SPEED_MAX, closeness)
 	global_position += (to_target / dist) * speed * delta
 
-func _get_player() -> Node3D:
-	var players := get_tree().get_nodes_in_group("player")
-	if players.is_empty():
-		return null
-	return players[0]
+## Timed out uncollected - same terminal shrink-and-free as _collect(),
+## just without the exp payout.
+func _despawn() -> void:
+	if _collected:
+		return
+	_collected = true
+	set_deferred("monitoring", false)
+	var tw := create_tween()
+	tw.tween_property(self, "scale", Vector3.ONE * 0.001, 0.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_callback(queue_free)
 
 func _on_body_entered(body: Node) -> void:
 	if _collected or Game.state != Game.State.PLAYING or not body.is_in_group("player"):

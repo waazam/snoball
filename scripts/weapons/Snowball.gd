@@ -52,6 +52,11 @@ var _age: float = 0.0
 var _dead: bool = false
 
 func _ready() -> void:
+	# So a run-end sweep (WaveManager.clear_all_enemies) can find and free
+	# any snowball still in flight - see that function's comment for why
+	# that matters (they're parented to current_scene, not the arena, so
+	# nothing else ever frees them on its own).
+	add_to_group("snowballs")
 	body_entered.connect(_on_body_entered)
 	if is_player_owned:
 		collision_layer = 8
@@ -145,11 +150,28 @@ func _physics_process(delta: float) -> void:
 		var p: float = 1.0 + 0.18 * sin(_pulse_time * PULSE_SPEED)
 		_visual_root.scale = Vector3.ONE * p
 
+## Nearly every player throw carries at least a baseline homing pull (see
+## Player._current_throw_stats), so this runs every physics frame for most
+## snowballs in flight at once. Re-scanning get_nodes_in_group("enemies")
+## (an O(enemy count) allocation+search) that often, on every single homing
+## snowball, got expensive fast once wave counts pushed enemy counts into
+## the hundreds. A locked-on target now steers every frame off its own
+## already-known position (cheap), and the group is only re-scanned to
+## (re)acquire a target on HOMING_RETARGET_INTERVAL or immediately if the
+## current one dies/despawns - imperceptible lag on the lock, far fewer
+## full-group scans.
+const HOMING_RETARGET_INTERVAL := 0.15
+var _homing_target: Node3D = null
+var _homing_retarget_timer: float = 0.0
+
 func _apply_homing(delta: float) -> void:
-	var target: Node3D = _find_nearest_enemy(25.0)
-	if target == null:
+	_homing_retarget_timer -= delta
+	if _homing_target == null or not is_instance_valid(_homing_target) or _homing_retarget_timer <= 0.0:
+		_homing_target = _find_nearest_enemy(25.0)
+		_homing_retarget_timer = HOMING_RETARGET_INTERVAL
+	if _homing_target == null:
 		return
-	var desired: Vector3 = (target.global_position + Vector3.UP * 0.6 - global_position).normalized()
+	var desired: Vector3 = (_homing_target.global_position + Vector3.UP * 0.6 - global_position).normalized()
 	var speed: float = velocity.length()
 	var cur_dir: Vector3 = velocity.normalized() if speed > 0.01 else desired
 	var new_dir: Vector3 = cur_dir.slerp(desired, clampf(homing * delta, 0.0, 1.0))

@@ -151,7 +151,7 @@ func _physics_process(delta: float) -> void:
 	_update_status_effects(delta)
 	if _dead:
 		return
-	var player := _get_player()
+	var player: Node3D = Game.player
 	if player == null:
 		velocity.y -= GRAVITY * delta
 		move_and_slide()
@@ -473,9 +473,3 @@ func _drop_exp_pickup() -> void:
 	var pickup: Area3D = scene.instantiate()
 	get_tree().current_scene.add_child(pickup)
 	pickup.global_position = global_position + Vector3.UP * 0.3
-
-func _get_player() -> Node3D:
-	var players := get_tree().get_nodes_in_group("player")
-	if players.is_empty():
-		return null
-	return players[0]

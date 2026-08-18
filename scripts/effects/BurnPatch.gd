@@ -159,15 +159,9 @@ func _process(delta: float) -> void:
 		_check_burn()
 
 func _check_burn() -> void:
-	var player: Node3D = _get_player()
+	var player: Node3D = Game.player
 	if player == null:
 		return
 	var d: float = Vector2(player.global_position.x - global_position.x, player.global_position.z - global_position.z).length()
 	if d <= _radius and player.has_method("take_hit"):
 		player.take_hit(_dps * TICK_INTERVAL)
-
-func _get_player() -> Node3D:
-	var players := get_tree().get_nodes_in_group("player")
-	if players.is_empty():
-		return null
-	return players[0]

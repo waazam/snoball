@@ -35,7 +35,31 @@ const TRAIL_TINTS := {
 	"sap": Color("#7FA332"),
 }
 
+## build() is called on every single snowball spawn - every player throw,
+## every enemy throw, every cluster shard - and its output is fully
+## deterministic in (shape, color) (no per-call randomness anywhere in the
+## builders below). Without caching, every one of those throws was building
+## a brand-new tree of Mesh/StandardMaterial3D resources from scratch, which
+## at high wave counts (dozens of enemies each throwing every second or two,
+## on top of the player's own throws) was a steady stream of avoidable
+## RenderingServer allocations - a real contributor to the wave-scaling
+## slowdown. Instead, build a template once per (shape, color) key and keep
+## reusing it: Node.duplicate() gives every caller its own independent node
+## tree (safe to move/rotate/free) while sharing the same underlying Mesh/
+## Material resources (duplicate() copies node structure, not the resources
+## a MeshInstance3D's mesh/material_override point to - same idiom the trail/
+## puff particle materials below already use, just applied to the body too).
+static var _build_cache: Dictionary = {}  # "shape|colorhex" -> template Node3D, never added to a live tree
+
 static func build(shape: String, color: Color) -> Node3D:
+	var key: String = "%s|%s" % [shape, color.to_html(true)]
+	var template: Node3D = _build_cache.get(key)
+	if template == null:
+		template = _build_uncached(shape, color)
+		_build_cache[key] = template
+	return template.duplicate()
+
+static func _build_uncached(shape: String, color: Color) -> Node3D:
 	match shape:
 		"perfect_white":
 			return _build_perfect(color)

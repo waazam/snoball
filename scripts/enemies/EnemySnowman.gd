@@ -448,7 +448,7 @@ func _detonate() -> void:
 	if _detonated or _dead:
 		return
 	_detonated = true
-	var player := _get_player()
+	var player: Node3D = Game.player
 	if player and global_position.distance_to(player.global_position) <= EXPLOSION_RADIUS:
 		if player.has_method("take_hit"):
 			player.take_hit(damage * EXPLOSION_DAMAGE_MULT)

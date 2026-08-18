@@ -258,7 +258,7 @@ func _update_snowstorm(delta: float) -> void:
 	if _hat_flop:
 		_hat_flop.rotation_degrees.z = 30.0 + sin(_sway_time * 1.6) * 4.0
 	_storm_launch_timer -= delta
-	var player := _get_player()
+	var player: Node3D = Game.player
 	if player == null:
 		return
 	var to_player: Vector3 = player.global_position - global_position

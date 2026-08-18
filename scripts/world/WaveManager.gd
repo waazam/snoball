@@ -83,6 +83,18 @@ func _check_cleared() -> void:
 		_cleared_emitted = true
 		emit_signal("wave_cleared", Game.wave)
 
+## Called once on player death (Main._on_player_died), before the game-over
+## screen's Restart/Menu either begins a fresh run or frees the arena
+## outright. Enemies/hats/presents live under the arena and would get swept
+## up by arena.queue_free() anyway, but exp pickups and in-flight snowballs
+## are deliberately parented to current_scene instead (see Enemy.
+## _drop_exp_pickup/Snowball._ready's group comment) so they keep existing
+## independently of whatever enemy or arena they came from - which also
+## means arena.queue_free() never touches them. Without sweeping those two
+## groups here as well, anything left over at the moment of death (an
+## uncollected snowflake, a snowball still mid-flight) would sit there
+## forever, quietly accumulating across every run played in the same
+## session.
 func clear_all_enemies() -> void:
 	spawning = false
 	_spawn_queue.clear()
@@ -95,4 +107,10 @@ func clear_all_enemies() -> void:
 	for p in get_tree().get_nodes_in_group("present_pickups"):
 		if is_instance_valid(p):
 			p.queue_free()
+	for x in get_tree().get_nodes_in_group("exp_pickups"):
+		if is_instance_valid(x):
+			x.queue_free()
+	for s in get_tree().get_nodes_in_group("snowballs"):
+		if is_instance_valid(s):
+			s.queue_free()
 	alive_count = 0

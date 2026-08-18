@@ -22,6 +22,16 @@ const EXP_PER_LEVEL := 10  # 1 snowflake pickup = 1 exp
 
 var state: int = State.MENU
 
+# The live Player node, kept up to date by Player.gd itself (_ready/
+# _exit_tree). Several scripts (Enemy.gd, ExpPickup.gd, BurnPatch.gd) used to
+# each independently run get_tree().get_nodes_in_group("player") - some of
+# them every physics frame, once per instance - just to find the one player
+# in the game. With enemy counts climbing into the hundreds at high waves,
+# that was a lot of redundant group scans for a value that only ever changes
+# twice a run (player spawns, player is freed). Reading Game.player instead
+# is both the single shared source of truth and an O(1) lookup.
+var player: Node3D = null
+
 # --- Run stats -------------------------------------------------------------
 var wave: int = 0
 var score: int = 0

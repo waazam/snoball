@@ -128,6 +128,9 @@ var _look_touch_index: int = -1
 
 func _ready() -> void:
 	add_to_group("player")
+	# See Game.player's comment - lets Enemy.gd/ExpPickup.gd/BurnPatch.gd read
+	# the player directly instead of each running their own group scan.
+	Game.player = self
 	_model_base_position = model.position
 	_model_base_scale = model.scale
 	# Default hat attachment is the static scene-authored anchor;
@@ -145,6 +148,14 @@ func _ready() -> void:
 	# up (Game.equipped_hat starts as "" on every fresh run).
 	if Game.equipped_hat != "":
 		_on_hat_equipped(Game.equipped_hat)
+
+func _exit_tree() -> void:
+	# Guarded by identity: on a run restart Main.gd instantiates the new
+	# Player (which sets Game.player = self immediately) before the old one's
+	# queue_free() actually removes it from the tree, so without this check
+	# the old instance's _exit_tree would null out the new player's reference.
+	if Game.player == self:
+		Game.player = null
 
 # --- Toy body (visual-only) ----------------------------------------------
 ## Swaps the realistic mannequin's look for the chunky primitive-built
